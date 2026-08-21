@@ -69,3 +69,30 @@ func TestClientNotFound(t *testing.T) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }
+
+func TestClientNullables(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+
+	created, err := r.Clients.Create(ctx, &model.Client{Name: "No Optionals"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.Clients.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []*string{got.Email, got.Phone, got.TelegramChatID, got.PIXKey} {
+		if p != nil {
+			t.Fatalf("expected nil optional after round-trip, got %q", *p)
+		}
+	}
+	list, err := r.Clients.List(ctx)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("list: %v %d", err, len(list))
+	}
+	c := list[0]
+	if c.Email != nil || c.Phone != nil || c.TelegramChatID != nil || c.PIXKey != nil {
+		t.Fatal("expected nil optionals in List result")
+	}
+}

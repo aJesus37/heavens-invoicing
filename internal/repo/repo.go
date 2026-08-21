@@ -11,8 +11,8 @@ type Repos struct {
 	Clients *ClientRepo
 }
 
-func New(conn *sql.DB) *Repos {
+func New(db *sql.DB) *Repos {
 	return &Repos{
-		Clients: &ClientRepo{db: conn},
+		Clients: &ClientRepo{db: db},
 	}
 }

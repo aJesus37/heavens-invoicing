@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/model"
@@ -50,7 +51,11 @@ func (r *ClientRepo) Update(ctx context.Context, c *model.Client) error {
 	if err != nil {
 		return err
 	}
-	if n, err := res.RowsAffected(); err == nil && n == 0 {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update client: %w", err)
+	}
+	if n == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -64,7 +69,7 @@ func (r *ClientRepo) List(ctx context.Context) ([]*model.Client, error) {
 	}
 	defer rows.Close()
 
-	var clients []*model.Client
+	clients := make([]*model.Client, 0)
 	for rows.Next() {
 		c, err := scanClient(rows.Scan)
 		if err != nil {
@@ -80,7 +85,11 @@ func (r *ClientRepo) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if n, err := res.RowsAffected(); err == nil && n == 0 {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete client: %w", err)
+	}
+	if n == 0 {
 		return ErrNotFound
 	}
 	return nil
