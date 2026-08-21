@@ -1,0 +1,137 @@
+package repo
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/jesus/invoice-app/internal/model"
+)
+
+type ProductRepo struct {
+	db *sql.DB
+}
+
+const productCols = `id, name, description, unit_price, currency, active, created_at, updated_at`
+
+func (r *ProductRepo) Create(ctx context.Context, p *model.Product) (*model.Product, error) {
+	if p.ID == "" {
+		p.ID = model.NewID()
+	}
+	now := time.Now().UTC()
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = now
+	}
+	if p.UpdatedAt.IsZero() {
+		p.UpdatedAt = now
+	}
+	// currency and active are omitted so the DB defaults ('BRL', 1) apply;
+	// set them explicitly afterwards via Update.
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO products (id, name, description, unit_price, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Description, p.UnitPrice, p.CreatedAt, p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (r *ProductRepo) Get(ctx context.Context, id string) (*model.Product, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT `+productCols+` FROM products WHERE id = ?`, id)
+	return scanProduct(row.Scan)
+}
+
+func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
+	p.UpdatedAt = time.Now().UTC()
+	active := 0
+	if p.Active {
+		active = 1
+	}
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE products SET name = ?, description = ?, unit_price = ?, currency = ?, active = ?, updated_at = ? WHERE id = ?`,
+		p.Name, p.Description, p.UnitPrice, p.Currency, active, p.UpdatedAt, p.ID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update product: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *ProductRepo) List(ctx context.Context) ([]*model.Product, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+productCols+` FROM products ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := make([]*model.Product, 0)
+	for rows.Next() {
+		p, err := scanProduct(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+	return products, rows.Err()
+}
+
+func (r *ProductRepo) ListActive(ctx context.Context) ([]*model.Product, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+productCols+` FROM products WHERE active = 1 ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := make([]*model.Product, 0)
+	for rows.Next() {
+		p, err := scanProduct(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, p)
+	}
+	return products, rows.Err()
+}
+
+func (r *ProductRepo) Delete(ctx context.Context, id string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM products WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete product: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func scanProduct(scan func(dest ...any) error) (*model.Product, error) {
+	var (
+		p      model.Product
+		active int
+	)
+	err := scan(&p.ID, &p.Name, &p.Description, &p.UnitPrice, &p.Currency, &active, &p.CreatedAt, &p.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	p.Active = active == 1
+	return &p, nil
+}
