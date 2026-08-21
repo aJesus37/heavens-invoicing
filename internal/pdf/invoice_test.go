@@ -2,7 +2,9 @@ package pdf
 
 import (
 	"bytes"
+	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -65,17 +67,21 @@ func TestPixKeyFor(t *testing.T) {
 		name       string
 		invPix     *string
 		senderPix  string
-		want       *string
+		wantNil    bool
 		wantString string
 	}{
 		{name: "invoice pix wins", invPix: &invoicePIX, senderPix: sender.PIXKey, wantString: invoicePIX},
+		{name: "empty invoice pix falls back", invPix: strPtr(""), senderPix: sender.PIXKey, wantString: fixturePIX},
 		{name: "falls back to sender", invPix: nil, senderPix: sender.PIXKey, wantString: fixturePIX},
-		{name: "no pix at all", invPix: nil, senderPix: "", want: nil},
+		{name: "no pix at all", invPix: nil, senderPix: "", wantNil: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := PixKeyFor(invoiceFixture(tt.invPix), SenderInfo{Name: "Heaven Labs LTDA", PIXKey: tt.senderPix})
-			if tt.want == nil && got == nil {
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("PixKeyFor() = %q, want nil", *got)
+				}
 				return
 			}
 			if got == nil || *got != tt.wantString {
@@ -84,6 +90,8 @@ func TestPixKeyFor(t *testing.T) {
 		})
 	}
 }
+
+func strPtr(s string) *string { return &s }
 
 func TestRenderInvoiceWithoutNotesAndNoPix(t *testing.T) {
 	inv := invoiceFixture(nil)
@@ -112,13 +120,51 @@ func TestRenderInvoiceLongDescription(t *testing.T) {
 }
 
 func TestUniTranslatesAccentsToCP1252(t *testing.T) {
-	got := uni("Emissão Cobrança Preço Observações")
+	got := tr("Emissão Cobrança Preço Observações")
 	want := "Emiss\xE3o Cobran\xE7a Pre\xE7o Observa\xE7\xF5es"
 	if got != want {
-		t.Errorf("uni() = %q, want %q", got, want)
+		t.Errorf("tr() = %q, want %q", got, want)
 	}
-	if got := uni("plain ASCII stays"); got != "plain ASCII stays" {
-		t.Errorf("uni(ascii) = %q", got)
+	if got := tr("plain ASCII stays"); got != "plain ASCII stays" {
+		t.Errorf("tr(ascii) = %q", got)
+	}
+}
+
+func TestRenderInvoiceConcurrent(t *testing.T) {
+	const goroutines = 8
+	const rendersPerGoroutine = 5
+
+	errs := make(chan error, goroutines*rendersPerGoroutine)
+	var wg sync.WaitGroup
+	for range goroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sender := SenderInfo{
+				Name:    "Heaven Labs LTDA",
+				Address: "Rua das Flores, 123\nSão Paulo - SP",
+				PIXKey:  fixturePIX,
+			}
+			client := model.Client{Name: "José da Conceição", Address: "Av Paulista, 1000\nSão Paulo - SP"}
+			pix := fixturePIX
+			for range rendersPerGoroutine {
+				inv := invoiceFixture(&pix)
+				var buf bytes.Buffer
+				if err := RenderInvoice(&buf, sender, client, inv); err != nil {
+					errs <- err
+					return
+				}
+				if !bytes.HasPrefix(buf.Bytes(), []byte("%PDF")) {
+					errs <- errors.New("output missing %PDF magic")
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -33,14 +34,21 @@ var (
 	colorLine = [3]int{200, 200, 200}
 )
 
-// uni converts UTF-8 text to cp1252, the encoding expected by fpdf's
+// tr converts UTF-8 text to cp1252, the encoding expected by fpdf's
 // built-in core fonts, so accented characters render correctly instead
-// of showing up garbled in the PDF.
-var uni = func() func(string) string {
-	tr := fpdf.New("P", "mm", "A4", "").UnicodeTranslatorFromDescriptor("")
-	tr("warmup")
-	return tr
-}()
+// of showing up garbled in the PDF. The underlying translator reuses a
+// shared buffer and is not safe for concurrent use, so calls are
+// serialized; the lock is uncontended in practice (microsecond work).
+var (
+	uniMu sync.Mutex
+	uni   = fpdf.New("P", "mm", "A4", "").UnicodeTranslatorFromDescriptor("")
+)
+
+func tr(s string) string {
+	uniMu.Lock()
+	defer uniMu.Unlock()
+	return uni(s)
+}
 
 // PixKeyFor returns the PIX key to display on the invoice: the invoice's
 // own key when set, otherwise the sender's, otherwise nil.
@@ -66,7 +74,7 @@ func formatDate(t time.Time) string {
 // truncate shortens s so it fits maxWidth in the current font, appending
 // an ellipsis when characters are cut off.
 func truncate(p *fpdf.Fpdf, s string, maxWidth float64) string {
-	s = uni(s)
+	s = tr(s)
 	if p.GetStringWidth(s) <= maxWidth {
 		return s
 	}
@@ -121,7 +129,7 @@ func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
 	p.SetFont("Helvetica", "B", 14)
 	p.CellFormat(100, 8, truncate(p, sender.Name, 98), "", 2, "L", false, 0, "")
 	setMuted(p)
-	p.MultiCell(100, lineHeight, uni(sender.Address), "", "L", false)
+	p.MultiCell(100, lineHeight, tr(sender.Address), "", "L", false)
 	leftEnd := p.GetY()
 
 	rightX, rightW := 105.0, contentSize-90
@@ -141,7 +149,7 @@ func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
 		} else {
 			setMuted(p)
 		}
-		p.CellFormat(rightW, lineHeight, uni(line.text), "", 2, "R", false, 0, "")
+		p.CellFormat(rightW, lineHeight, tr(line.text), "", 2, "R", false, 0, "")
 	}
 	rightEnd := p.GetY()
 
@@ -155,11 +163,11 @@ func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
 
 func drawBillTo(p *fpdf.Fpdf, client model.Client) {
 	setBold(p)
-	p.CellFormat(contentSize, lineHeight, uni("Cobrança para:"), "", 2, "L", false, 0, "")
+	p.CellFormat(contentSize, lineHeight, tr("Cobrança para:"), "", 2, "L", false, 0, "")
 	setRegular(p)
-	p.CellFormat(contentSize, lineHeight, uni(client.Name), "", 2, "L", false, 0, "")
+	p.CellFormat(contentSize, lineHeight, tr(client.Name), "", 2, "L", false, 0, "")
 	if client.Address != "" {
-		p.MultiCell(contentSize, lineHeight, uni(client.Address), "", "L", false)
+		p.MultiCell(contentSize, lineHeight, tr(client.Address), "", "L", false)
 	}
 	p.Ln(4)
 }
@@ -182,7 +190,7 @@ func drawItems(p *fpdf.Fpdf, inv model.Invoice) {
 	p.SetFillColor(colorFill[0], colorFill[1], colorFill[2])
 	setBold(p)
 	for i, h := range headers {
-		p.CellFormat(itemCols[i].width, lineHeight+1, uni(h), "", 0, itemCols[i].align, true, 0, "")
+		p.CellFormat(itemCols[i].width, lineHeight+1, tr(h), "", 0, itemCols[i].align, true, 0, "")
 	}
 	p.Ln(-1)
 
@@ -235,7 +243,7 @@ func drawPIX(p *fpdf.Fpdf, inv model.Invoice, sender SenderInfo) {
 		return
 	}
 	setBold(p)
-	p.CellFormat(contentSize, lineHeight, uni("Chave PIX: "+*key), "", 2, "L", false, 0, "")
+	p.CellFormat(contentSize, lineHeight, tr("Chave PIX: "+*key), "", 2, "L", false, 0, "")
 	p.Ln(2)
 }
 
@@ -249,5 +257,5 @@ func drawNotes(p *fpdf.Fpdf, inv model.Invoice) {
 		p.SetY(y) // pin notes to the bottom of the page
 	}
 	setMuted(p)
-	p.MultiCell(contentSize, lineHeight, uni("Observações: "+notes), "", "L", false)
+	p.MultiCell(contentSize, lineHeight, tr("Observações: "+notes), "", "L", false)
 }
