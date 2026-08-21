@@ -52,14 +52,14 @@ func mustDate(s string) time.Time {
 }
 
 func TestEmailName(t *testing.T) {
-	if got := deliver.NewEmail(&fakeSender{}, "from@me.com").Name(); got != "email" {
+	if got := deliver.NewEmail(&fakeSender{}, "from@me.com", "").Name(); got != "email" {
 		t.Fatalf("want %q, got %q", "email", got)
 	}
 }
 
 func TestEmailSendInvoice(t *testing.T) {
 	sender := &fakeSender{}
-	d := deliver.NewEmail(sender, "billing@me.com")
+	d := deliver.NewEmail(sender, "billing@me.com", "")
 	email := "to@acme.com"
 	pdf := []byte("%PDF-fake")
 
@@ -94,7 +94,7 @@ func TestEmailSendInvoice(t *testing.T) {
 
 func TestEmailSendInvoicePlaceholders(t *testing.T) {
 	sender := &fakeSender{}
-	d := deliver.NewEmail(sender, "billing@me.com")
+	d := deliver.NewEmail(sender, "billing@me.com", "")
 	email := "to@acme.com"
 
 	if err := d.SendInvoice(context.Background(), testClient(&email), testInvoice(), []byte("pdf")); err != nil {
@@ -112,9 +112,77 @@ func TestEmailSendInvoicePlaceholders(t *testing.T) {
 	}
 }
 
+func TestEmailPIXKeyPrecedence(t *testing.T) {
+	email := "to@acme.com"
+	invoicePix := "pix@invoice.com"
+	fallbackPix := "pix@sender.com"
+
+	t.Run("invoice key wins over fallback", func(t *testing.T) {
+		sender := &fakeSender{}
+		d := deliver.NewEmail(sender, "billing@me.com", fallbackPix)
+		inv := testInvoice()
+		inv.PIXKey = &invoicePix
+
+		if err := d.SendInvoice(context.Background(), testClient(&email), inv, []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		body := sender.calls[0].body
+		assertContains(t, body, invoicePix)
+		if strings.Contains(body, fallbackPix) {
+			t.Fatalf("fallback must not appear when invoice has its own key: %q", body)
+		}
+	})
+
+	t.Run("fallback used when invoice has none", func(t *testing.T) {
+		sender := &fakeSender{}
+		d := deliver.NewEmail(sender, "billing@me.com", fallbackPix)
+
+		if err := d.SendReminder(context.Background(), testClient(&email), testInvoice()); err != nil {
+			t.Fatal(err)
+		}
+		body := sender.calls[0].body
+		assertContains(t, body, fallbackPix)
+		assertContains(t, body, "000001")
+	})
+
+	t.Run("omitted entirely when no key anywhere", func(t *testing.T) {
+		sender := &fakeSender{}
+		d := deliver.NewEmail(sender, "billing@me.com", "")
+
+		if err := d.SendInvoice(context.Background(), testClient(&email), testInvoice(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		body := sender.calls[0].body
+		if strings.Contains(body, "PIX") || strings.Contains(body, "{{") {
+			t.Fatalf("empty PIX key must omit the section, got %q", body)
+		}
+
+		sender.calls = nil
+		if err := d.SendReminder(context.Background(), testClient(&email), testInvoice()); err != nil {
+			t.Fatal(err)
+		}
+		body = sender.calls[0].body
+		if strings.Contains(body, "PIX") || strings.Contains(body, "{{") {
+			t.Fatalf("empty PIX key must omit the section, got %q", body)
+		}
+	})
+
+	t.Run("empty-string invoice key treated as unset", func(t *testing.T) {
+		sender := &fakeSender{}
+		d := deliver.NewEmail(sender, "billing@me.com", fallbackPix)
+		inv := testInvoice()
+		inv.PIXKey = strPtr("")
+
+		if err := d.SendInvoice(context.Background(), testClient(&email), inv, []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, sender.calls[0].body, fallbackPix)
+	})
+}
+
 func TestEmailSendReminder(t *testing.T) {
 	sender := &fakeSender{}
-	d := deliver.NewEmail(sender, "billing@me.com")
+	d := deliver.NewEmail(sender, "billing@me.com", "")
 	email := "to@acme.com"
 
 	if err := d.SendReminder(context.Background(), testClient(&email), testInvoice()); err != nil {
@@ -152,7 +220,7 @@ func TestEmailMissingRecipient(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sender := &fakeSender{}
-			d := deliver.NewEmail(sender, "billing@me.com")
+			d := deliver.NewEmail(sender, "billing@me.com", "")
 			client := testClient(tc.email)
 
 			if err := d.SendInvoice(ctx, client, testInvoice(), pdf); err == nil {
@@ -171,7 +239,7 @@ func TestEmailMissingRecipient(t *testing.T) {
 func TestEmailSenderErrorPropagates(t *testing.T) {
 	wantErr := errors.New("smtp down")
 	sender := &fakeSender{err: wantErr}
-	d := deliver.NewEmail(sender, "billing@me.com")
+	d := deliver.NewEmail(sender, "billing@me.com", "")
 	email := "to@acme.com"
 
 	if err := d.SendInvoice(context.Background(), testClient(&email), testInvoice(), []byte("pdf")); !errors.Is(err, wantErr) {
@@ -179,6 +247,48 @@ func TestEmailSenderErrorPropagates(t *testing.T) {
 	}
 	if err := d.SendReminder(context.Background(), testClient(&email), testInvoice()); !errors.Is(err, wantErr) {
 		t.Fatalf("want smtp error, got %v", err)
+	}
+}
+
+func TestEmailHeaderInjectionRejected(t *testing.T) {
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		name        string
+		from        string
+		clientEmail *string
+	}{
+		{"recipient with CRLF", "billing@me.com", strPtr("a@b.com\r\nBcc: x@evil.com")},
+		{"recipient with LF", "billing@me.com", strPtr("a@b.com\nBcc: x@evil.com")},
+		{"recipient with NUL", "billing@me.com", strPtr("bad\x00@example.com")},
+		{"unparseable recipient", "billing@me.com", strPtr("not-an-email")},
+		{"sender with CRLF", "evil@x.com\r\nBcc: y@evil.com", strPtr("to@acme.com")},
+		{"empty sender", "", strPtr("to@acme.com")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sender := &fakeSender{}
+			d := deliver.NewEmail(sender, tc.from, "")
+			client := testClient(tc.clientEmail)
+
+			err := d.SendInvoice(ctx, client, testInvoice(), []byte("pdf"))
+			if err == nil || !strings.Contains(err.Error(), "invalid email address") {
+				t.Fatalf("SendInvoice: want 'invalid email address' error, got %v", err)
+			}
+			err = d.SendReminder(ctx, client, testInvoice())
+			if err == nil || !strings.Contains(err.Error(), "invalid email address") {
+				t.Fatalf("SendReminder: want 'invalid email address' error, got %v", err)
+			}
+			if len(sender.calls) != 0 {
+				t.Fatalf("no send expected, got %d calls: %+v", len(sender.calls), sender.calls)
+			}
+		})
+	}
+}
+
+func assertContains(t *testing.T, s, want string) {
+	t.Helper()
+	if !strings.Contains(s, want) {
+		t.Fatalf("%q does not contain %q", s, want)
 	}
 }
 

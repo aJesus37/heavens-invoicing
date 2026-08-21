@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 const (
@@ -25,7 +26,7 @@ type SettingsRepo struct {
 func (s *SettingsRepo) Get(ctx context.Context, key string) (string, error) {
 	var value string
 	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	}
 	if err != nil {
