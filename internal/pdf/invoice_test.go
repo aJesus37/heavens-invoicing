@@ -60,7 +60,7 @@ func TestRenderInvoiceProducesPDF(t *testing.T) {
 
 func TestPixKeyFor(t *testing.T) {
 	sender := senderFixture()
-	invoicePIX := fixturePIX
+	invoicePIX := "pix@invoice.com"
 	tests := []struct {
 		name       string
 		invPix     *string
