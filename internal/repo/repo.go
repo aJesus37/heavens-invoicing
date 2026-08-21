@@ -11,6 +11,7 @@ type Repos struct {
 	Clients  *ClientRepo
 	Products *ProductRepo
 	Invoices *InvoiceRepo
+	Settings *SettingsRepo
 }
 
 func New(db *sql.DB) *Repos {
@@ -18,5 +19,6 @@ func New(db *sql.DB) *Repos {
 		Clients:  &ClientRepo{db: db},
 		Products: &ProductRepo{db: db},
 		Invoices: &InvoiceRepo{db: db},
+		Settings: &SettingsRepo{db: db},
 	}
 }

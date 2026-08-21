@@ -1,0 +1,43 @@
+package repo
+
+import (
+	"context"
+	"database/sql"
+)
+
+const (
+	SettingSMTPHost = "smtp_host"
+	SettingSMTPPort = "smtp_port"
+	SettingSMTPUser = "smtp_user"
+	SettingSMTPPass = "smtp_pass"
+	SettingSMTPFrom = "smtp_from"
+
+	SettingTelegramBotToken    = "telegram_bot_token"
+	SettingAdminTelegramChatID = "admin_telegram_chat_id"
+
+	SettingDefaultPIXKey = "default_pix_key"
+)
+
+type SettingsRepo struct {
+	db *sql.DB
+}
+
+func (s *SettingsRepo) Get(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+func (s *SettingsRepo) Set(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO settings (key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		key, value)
+	return err
+}
