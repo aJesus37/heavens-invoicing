@@ -76,6 +76,9 @@ func TestProductDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if created.Currency != "BRL" || !created.Active {
+		t.Fatalf("returned struct should match persisted defaults, got %+v", created)
+	}
 	got, err := r.Products.Get(ctx, created.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -92,6 +95,26 @@ func TestProductDefaults(t *testing.T) {
 	list, err := r.Products.List(ctx)
 	if err != nil || len(list) != 1 {
 		t.Fatalf("list: %v %d", err, len(list))
+	}
+}
+
+func TestProductCreateHonorsCurrency(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+
+	created, err := r.Products.Create(ctx, &model.Product{Name: "USD Product", UnitPrice: 999, Currency: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Currency != "USD" {
+		t.Fatalf("returned struct lost caller currency: %q", created.Currency)
+	}
+	got, err := r.Products.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Currency != "USD" {
+		t.Fatalf("expected persisted currency USD, got %q", got.Currency)
 	}
 }
 

@@ -27,15 +27,19 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) (*model.Prod
 	if p.UpdatedAt.IsZero() {
 		p.UpdatedAt = now
 	}
-	// currency and active are omitted so the DB defaults ('BRL', 1) apply;
-	// set them explicitly afterwards via Update.
+	if p.Currency == "" {
+		p.Currency = "BRL"
+	}
+	// Caller-provided Currency is honored (empty -> BRL). New products always
+	// start active (DB default 1); call Update to deactivate.
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO products (id, name, description, unit_price, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Description, p.UnitPrice, p.CreatedAt, p.UpdatedAt,
+		`INSERT INTO products (id, name, description, unit_price, currency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Description, p.UnitPrice, p.Currency, p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	p.Active = true
 	return p, nil
 }
 
