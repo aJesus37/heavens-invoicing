@@ -309,4 +309,59 @@ func TestInvoiceListByStatus(t *testing.T) {
 	if len(mixed) != 2 {
 		t.Fatalf("ListByStatus(sent,cancelled) = %d invoices, want 2", len(mixed))
 	}
+	if _, err := r.Invoices.ListByStatus(ctx, "sent", "nope"); err == nil {
+		t.Fatal("expected error for unknown status")
+	}
+}
+
+func TestInvoiceListByClient(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+	clientA := seedClient(t, r)
+	clientB, err := r.Clients.Create(ctx, &model.Client{Name: "Second Client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, cID := range []string{clientA.ID, clientB.ID, clientA.ID} {
+		inv := newDraftInvoice(cID, &model.InvoiceItem{Description: "Line", UnitPrice: 100, Quantity: 1})
+		if err := r.Invoices.Create(ctx, inv); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	listA, err := r.Invoices.ListByClient(ctx, clientA.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listA) != 2 {
+		t.Fatalf("ListByClient(A) = %d invoices, want 2", len(listA))
+	}
+	if listA[0].Number != 3 || listA[1].Number != 1 {
+		t.Fatalf("ListByClient(A) order = %v, want [3 1]", []int64{listA[0].Number, listA[1].Number})
+	}
+	for _, inv := range listA {
+		if inv.ClientID != clientA.ID {
+			t.Fatalf("invoice %d belongs to %q, want %q", inv.Number, inv.ClientID, clientA.ID)
+		}
+		if inv.Items != nil {
+			t.Fatal("ListByClient should not load items")
+		}
+	}
+
+	listB, err := r.Invoices.ListByClient(ctx, clientB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listB) != 1 || listB[0].Number != 2 {
+		t.Fatalf("ListByClient(B) unexpected: %+v", listB)
+	}
+
+	empty, err := r.Invoices.ListByClient(ctx, "missing-client")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty == nil || len(empty) != 0 {
+		t.Fatalf("ListByClient(missing) = %#v, want non-nil empty slice", empty)
+	}
 }

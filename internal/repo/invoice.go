@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,13 +19,9 @@ type InvoiceRepo struct {
 const invoiceCols = `id, client_id, number, status, issue_date, due_date, subtotal, total, notes, pix_key, pdf_path, created_at, updated_at`
 const invoiceItemCols = `id, invoice_id, product_id, description, unit_price, quantity, total`
 
-var invoiceStatuses = map[string]bool{
-	"draft":     true,
-	"sent":      true,
-	"paid":      true,
-	"overdue":   true,
-	"cancelled": true,
-}
+var invoiceStatuses = []string{"draft", "sent", "paid", "overdue", "cancelled"}
+
+func validInvoiceStatus(s string) bool { return slices.Contains(invoiceStatuses, s) }
 
 func (r *InvoiceRepo) Create(ctx context.Context, inv *model.Invoice) error {
 	if len(inv.Items) == 0 {
@@ -44,7 +41,7 @@ func (r *InvoiceRepo) Create(ctx context.Context, inv *model.Invoice) error {
 	if inv.Status == "" {
 		inv.Status = "draft"
 	}
-	if !invoiceStatuses[inv.Status] {
+	if !validInvoiceStatus(inv.Status) {
 		return fmt.Errorf("create invoice: invalid status %q", inv.Status)
 	}
 
@@ -112,8 +109,11 @@ func (r *InvoiceRepo) Get(ctx context.Context, id string) (*model.Invoice, error
 	return inv, nil
 }
 
+// UpdateStatus sets the status directly; transitions are any->any by design.
+// The draft->sent item requirement is enforced at Create because items are
+// immutable post-create.
 func (r *InvoiceRepo) UpdateStatus(ctx context.Context, id string, status string) error {
-	if !invoiceStatuses[status] {
+	if !validInvoiceStatus(status) {
 		return fmt.Errorf("update invoice status: invalid status %q", status)
 	}
 	res, err := r.db.ExecContext(ctx,
@@ -155,6 +155,11 @@ func (r *InvoiceRepo) ListByStatus(ctx context.Context, statuses ...string) ([]*
 	if len(statuses) == 0 {
 		return nil, fmt.Errorf("list invoices by status: no statuses provided")
 	}
+	for _, s := range statuses {
+		if !validInvoiceStatus(s) {
+			return nil, fmt.Errorf("list invoices by status: unknown status %q (valid: %s)", s, strings.Join(invoiceStatuses, ", "))
+		}
+	}
 	args := make([]any, len(statuses))
 	for i, s := range statuses {
 		args[i] = s
@@ -165,6 +170,25 @@ func (r *InvoiceRepo) ListByStatus(ctx context.Context, statuses ...string) ([]*
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list invoices by status: %w", err)
+	}
+	defer rows.Close()
+
+	invoices := make([]*model.Invoice, 0)
+	for rows.Next() {
+		inv, err := scanInvoice(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		invoices = append(invoices, inv)
+	}
+	return invoices, rows.Err()
+}
+
+func (r *InvoiceRepo) ListByClient(ctx context.Context, clientID string) ([]*model.Invoice, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+invoiceCols+` FROM invoices WHERE client_id = ? ORDER BY number DESC`, clientID)
+	if err != nil {
+		return nil, fmt.Errorf("list invoices by client: %w", err)
 	}
 	defer rows.Close()
 
