@@ -55,12 +55,6 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 	h.render.renderPage(w, http.StatusOK, "recorrentes.html", "Recorrentes", recorrentesData{Rows: rows})
 }
 
-type selectGroup struct {
-	Value    string
-	Label    string
-	Selected bool
-}
-
 type recorrenteFormData struct {
 	Clients    []selectOption
 	Templates  []selectOption
