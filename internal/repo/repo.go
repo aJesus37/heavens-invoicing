@@ -13,6 +13,7 @@ type Repos struct {
 	Invoices  *InvoiceRepo
 	Settings  *SettingsRepo
 	Recurring *RecurringRepo
+	Sessions  *SessionRepo
 }
 
 func New(db *sql.DB) *Repos {
@@ -22,5 +23,6 @@ func New(db *sql.DB) *Repos {
 		Invoices:  &InvoiceRepo{db: db},
 		Settings:  &SettingsRepo{db: db},
 		Recurring: &RecurringRepo{db: db},
+		Sessions:  &SessionRepo{db: db},
 	}
 }
