@@ -20,6 +20,9 @@ const (
 	SettingAdminTelegramChatID = "admin_telegram_chat_id"
 
 	SettingDefaultPIXKey = "default_pix_key"
+
+	// SettingLocale selects the web UI language ("en" or "pt-BR").
+	SettingLocale = "locale"
 )
 
 type SettingsRepo struct {
