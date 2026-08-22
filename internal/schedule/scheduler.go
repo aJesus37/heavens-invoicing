@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 )
@@ -83,6 +84,7 @@ type Scheduler struct {
 	clients   ClientStore
 	router    Sender
 	notifier  Notifier
+	locale    func() i18n.Lang // admin-notification language resolver
 	info      pdf.SenderInfo
 
 	now           func() time.Time // injectable clock
@@ -100,14 +102,18 @@ type Scheduler struct {
 }
 
 // New wires a Scheduler around its dependencies. now must be non-nil;
-// tuning knobs keep their defaults unless overridden afterwards.
-func New(recurring RecurringStore, invoices InvoiceStore, clients ClientStore, router Sender, notifier Notifier, info pdf.SenderInfo, now func() time.Time) *Scheduler {
+// tuning knobs keep their defaults unless overridden afterwards. locale
+// supplies the admin-notification language, resolved per use so settings
+// changes apply immediately; nil (or an unsupported value) keeps pt-BR,
+// matching the Router's fallback.
+func New(recurring RecurringStore, invoices InvoiceStore, clients ClientStore, router Sender, notifier Notifier, locale func() i18n.Lang, info pdf.SenderInfo, now func() time.Time) *Scheduler {
 	return &Scheduler{
 		recurring:     recurring,
 		invoices:      invoices,
 		clients:       clients,
 		router:        router,
 		notifier:      notifier,
+		locale:        locale,
 		info:          info,
 		now:           now,
 		interval:      DefaultInterval,
@@ -117,6 +123,17 @@ func New(recurring RecurringStore, invoices InvoiceStore, clients ClientStore, r
 		pending:       make(map[string]time.Time),
 		attempted:     make(map[string]time.Time),
 	}
+}
+
+// lang resolves the current admin-facing language.
+func (s *Scheduler) lang() i18n.Lang {
+	if s.locale == nil {
+		return i18n.PtBR
+	}
+	if l, ok := i18n.Parse(string(s.locale())); ok {
+		return l
+	}
+	return i18n.PtBR
 }
 
 // Tick runs one full pass: fires due recurring schedules, then walks the
@@ -185,8 +202,7 @@ func (s *Scheduler) fireDueSchedules(ctx context.Context, today time.Time) error
 		s.markAttempted(sched.ID, today)
 		if err := s.fireSchedule(ctx, sched, today); err != nil {
 			log.Printf("scheduler: recurring %s (%s): %v", sched.ID, sched.Frequency, err)
-			s.notifyAdmin(ctx, fmt.Sprintf("Agenda recorrente %s (%s) falhou, vou tentar novamente amanhã: %v",
-				sched.ID, sched.Frequency, err))
+			s.notifyAdmin(ctx, i18n.T(s.lang(), "schedule.recurring_failed", sched.ID, sched.Frequency, err))
 			errs = append(errs, fmt.Errorf("recurring schedule %s: %w", sched.ID, err))
 		}
 	}
@@ -224,7 +240,7 @@ func (s *Scheduler) fireSchedule(ctx context.Context, sched *model.RecurringSche
 	}
 	if !anyChannelOK(results) {
 		return fmt.Errorf("invoice #%06d via %q failed on every channel (%s)",
-			inv.Number, sched.DeliveryMethod, summarize(results))
+			inv.Number, sched.DeliveryMethod, summarize(s.lang(), results))
 	}
 
 	// Advance from the fire day (not the stale NextSendDate) so periods
@@ -328,8 +344,7 @@ func (s *Scheduler) handleOverdue(ctx context.Context, inv *model.Invoice, daysO
 		if err != nil {
 			return fmt.Errorf("load client %s: %w", inv.ClientID, err)
 		}
-		s.notifyAdmin(ctx, fmt.Sprintf(
-			"Fatura #%06d (%s) para %s venceu há %d dias. Paga? Responda /paid %d",
+		s.notifyAdmin(ctx, i18n.T(s.lang(), "schedule.overdue_ask",
 			inv.Number, pdf.FormatBRL(inv.Total), client.Name, daysOverdue, inv.Number))
 		s.mu.Lock()
 		s.pending[inv.ID] = now
@@ -367,7 +382,7 @@ func (s *Scheduler) handleOverdue(ctx context.Context, inv *model.Invoice, daysO
 		if err != nil {
 			return fmt.Errorf("send reminder: %w", err)
 		}
-		return fmt.Errorf("reminder #%06d failed on every channel (%s)", current.Number, summarize(results))
+		return fmt.Errorf("reminder #%06d failed on every channel (%s)", current.Number, summarize(s.lang(), results))
 	}
 	if err := s.invoices.UpdateStatus(ctx, inv.ID, "overdue"); err != nil {
 		return fmt.Errorf("mark overdue after reminder: %w", err)
@@ -417,9 +432,9 @@ func anyChannelOK(results []deliver.ChannelResult) bool {
 	return false
 }
 
-func summarize(results []deliver.ChannelResult) string {
+func summarize(lang i18n.Lang, results []deliver.ChannelResult) string {
 	if len(results) == 0 {
-		return "nenhum canal disponível"
+		return i18n.T(lang, "schedule.no_channels")
 	}
 	parts := make([]string, 0, len(results))
 	for _, r := range results {

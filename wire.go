@@ -158,7 +158,8 @@ func startAdminBot(ctx context.Context, c *telegram.Client, adminChatID string, 
 // unconfigured (per-channel "not configured" results), so ticks without any
 // delivery channel just report failures to the (possibly silent) notifier.
 func startScheduler(ctx context.Context, repos *repo.Repos, router *deliver.Router, notifier deliver.Notifier, senderInfo pdf.SenderInfo) {
-	sched := schedule.New(repos.Recurring, repos.Invoices, repos.Clients, router, notifier, senderInfo, time.Now)
+	sched := schedule.New(repos.Recurring, repos.Invoices, repos.Clients, router, notifier,
+		settingsLocale(repos.Settings), senderInfo, time.Now)
 	go func() {
 		log.Printf("scheduler started (tick every %s)", schedule.DefaultInterval)
 		sched.Run(ctx)

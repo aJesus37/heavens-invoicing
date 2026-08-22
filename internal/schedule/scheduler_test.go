@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -324,7 +325,7 @@ func newHarness(now time.Time, cs ...*model.Client) *harness {
 		notifier: &fakeNotifier{},
 		render:   &countingRenderer{},
 	}
-	h.sched = New(h.recur, h.invoices, h.clients, h.sender, h.notifier, pdf.SenderInfo{}, func() time.Time { return now })
+	h.sched = New(h.recur, h.invoices, h.clients, h.sender, h.notifier, nil, pdf.SenderInfo{}, func() time.Time { return now })
 	h.sched.renderPDF = h.render.render
 	h.sender.invoices = h.invoices
 	return h
@@ -744,6 +745,137 @@ func TestOverdueReminderFailureRetriesLater(t *testing.T) {
 	if askedAt.IsZero() || !askedAt.After(now.Add(-time.Minute)) {
 		t.Fatalf("askedAt should reset to ~now for a later retry, got %v", askedAt)
 	}
+}
+
+// --- admin locale ---
+
+// TestSchedulerNotificationsFollowInjectedLocale pins that admin-facing
+// scheduler texts (overdue ask, recurring failure, channel summaries)
+// resolve their language per use from the injected locale func; nil and
+// junk resolvers keep pt-BR.
+func TestSchedulerNotificationsFollowInjectedLocale(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("overdue ask in en", func(t *testing.T) {
+		now := day(testNow)
+		h := newHarness(now)
+		h.sched.locale = func() i18n.Lang { return i18n.En }
+		seedOverdueInvoice(h, now.AddDate(0, 0, -10))
+
+		if err := h.sched.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		texts := h.notifier.snapshot()
+		if len(texts) != 1 {
+			t.Fatalf("notifications = %+v, want one ask", texts)
+		}
+		for _, want := range []string{"Invoice #000042", "R$ 1.234,56", "Acme Ltda", "is 10 days overdue", "/paid 42"} {
+			if !strings.Contains(texts[0], want) {
+				t.Errorf("en ask %q missing %q", texts[0], want)
+			}
+		}
+		for _, banned := range []string{"Fatura", "venceu", "Paga?"} {
+			if strings.Contains(texts[0], banned) {
+				t.Errorf("en ask leaked pt-BR wording %q", banned)
+			}
+		}
+
+		// The resolver is consulted on every notification: flipping it to
+		// pt-BR makes the next invoice's ask Portuguese without rebuilding
+		// the scheduler.
+		locale := i18n.PtBR
+		h.sched.locale = func() i18n.Lang { return locale }
+		h.invoices.seed(&model.Invoice{
+			ID: "overdue-2", ClientID: testClient.ID, Number: 43,
+			Status: "sent", Total: 5000, DueDate: now.AddDate(0, 0, -9),
+		})
+		if err := h.sched.Tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		texts = h.notifier.snapshot()
+		last := texts[len(texts)-1]
+		if len(texts) != 2 || !strings.Contains(last, "Fatura #000043") || !strings.Contains(last, "venceu há 9 dias") {
+			t.Fatalf("second pass notifications = %+v, want pt-BR ask for #43 only", texts)
+		}
+	})
+
+	t.Run("recurring failure notice in en", func(t *testing.T) {
+		h := newHarness(day(testNow))
+		h.sched.locale = func() i18n.Lang { return i18n.En }
+		tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+		h.recur.active = []*model.RecurringSchedule{{
+			ID:                "sched-1",
+			ClientID:          testClient.ID,
+			InvoiceTemplateID: tpl.ID,
+			Frequency:         "monthly",
+			NextSendDate:      day("2026-03-01"),
+			DeliveryMethod:    "email",
+		}}
+		h.sender.failMethods["email"] = true
+
+		_ = h.sched.Tick(ctx)
+
+		texts := h.notifier.snapshot()
+		if len(texts) != 1 {
+			t.Fatalf("notifications = %+v, want one failure notice", texts)
+		}
+		for _, want := range []string{"Recurring schedule sched-1 (monthly) failed", "will retry tomorrow"} {
+			if !strings.Contains(texts[0], want) {
+				t.Errorf("en notice %q missing %q", texts[0], want)
+			}
+		}
+		for _, banned := range []string{"Agenda recorrente", "falhou"} {
+			if strings.Contains(texts[0], banned) {
+				t.Errorf("en notice leaked pt-BR wording %q", banned)
+			}
+		}
+	})
+
+	t.Run("no-channels summary follows locale", func(t *testing.T) {
+		build := func(locale i18n.Lang) error {
+			h := newHarness(day(testNow))
+			h.sched.locale = func() i18n.Lang { return locale }
+			tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+			h.recur.active = []*model.RecurringSchedule{{
+				ID:                "sched-1",
+				ClientID:          testClient.ID,
+				InvoiceTemplateID: tpl.ID,
+				Frequency:         "weekly",
+				NextSendDate:      day(testNow),
+				DeliveryMethod:    deliver.MethodAll,
+			}}
+			h.sender.failMethods[deliver.MethodAll] = true // zero attempted channels
+			return h.sched.Tick(ctx)
+		}
+		if err := build(i18n.En); err == nil || !strings.Contains(err.Error(), "(no channel available)") {
+			t.Fatalf("en tick err = %v, want localized no-channel summary", err)
+		}
+		if err := build(i18n.PtBR); err == nil || !strings.Contains(err.Error(), "(nenhum canal disponível)") {
+			t.Fatalf("pt-BR tick err = %v, want localized no-channel summary", err)
+		}
+	})
+
+	t.Run("nil and junk resolvers fall back to pt-BR", func(t *testing.T) {
+		for name, resolver := range map[string]func() i18n.Lang{
+			"nil":     nil,
+			"garbage": func() i18n.Lang { return i18n.Lang("xx") },
+		} {
+			t.Run(name, func(t *testing.T) {
+				now := day(testNow)
+				h := newHarness(now)
+				h.sched.locale = resolver
+				seedOverdueInvoice(h, now.AddDate(0, 0, -10))
+
+				if err := h.sched.Tick(ctx); err != nil {
+					t.Fatal(err)
+				}
+				texts := h.notifier.snapshot()
+				if len(texts) != 1 || !strings.Contains(texts[0], "venceu há 10 dias") {
+					t.Fatalf("notifications = %+v, want pt-BR fallback ask", texts)
+				}
+			})
+		}
+	})
 }
 
 // --- plumbing ---
