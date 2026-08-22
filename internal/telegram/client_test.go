@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -272,6 +273,61 @@ func TestGetUpdatesParsesOffsetAndDecodesUpdates(t *testing.T) {
 	if updates[1].Message != nil {
 		t.Fatalf("second update message = %+v, want nil", updates[1].Message)
 	}
+}
+
+// TestGetUpdatesLargeBatchNotTruncated guards against response truncation: a
+// backlog batch bigger than the send-ack read cap used to wedge the bot with
+// an undecodable JSON body and a never-advancing offset.
+func TestGetUpdatesLargeBatchNotTruncated(t *testing.T) {
+	const firstID = 500
+	const count = 100
+
+	var gotAllowedUpdates string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAllowedUpdates = r.URL.Query().Get("allowed_updates")
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, largeUpdatePayload(t, firstID, count))
+	}))
+	defer srv.Close()
+
+	client := telegram.NewClient(srv.Client(), srv.URL, testToken)
+
+	updates, err := client.GetUpdates(context.Background(), firstID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updates) != count {
+		t.Fatalf("updates = %d, want %d", len(updates), count)
+	}
+	if updates[0].UpdateID != firstID || updates[count-1].UpdateID != firstID+count-1 {
+		t.Fatalf("ids = %d..%d, want %d..%d", updates[0].UpdateID, updates[count-1].UpdateID, firstID, firstID+count-1)
+	}
+	last := updates[count-1]
+	if last.Message == nil || last.Message.Chat.ID != 42 || !strings.HasPrefix(last.Message.Text, "update") {
+		t.Fatalf("last update mismatch: %+v", last)
+	}
+	if gotAllowedUpdates != `["message"]` {
+		t.Fatalf("allowed_updates param = %q, want [\"message\"]", gotAllowedUpdates)
+	}
+}
+
+func largeUpdatePayload(t *testing.T, firstID, count int) string {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString(`{"ok":true,"result":[`)
+	for i := range count {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, `{"update_id":%d,"message":{"chat":{"id":42},"text":"update %03d %s"}}`,
+			firstID+i, i, strings.Repeat("x", 60))
+	}
+	b.WriteString(`]}`)
+	payload := b.String()
+	if len(payload) <= 2048 {
+		t.Fatalf("fixture payload is only %d bytes, must exceed the legacy 2048-byte cap", len(payload))
+	}
+	return payload
 }
 
 func TestGetUpdatesEmptyResult(t *testing.T) {

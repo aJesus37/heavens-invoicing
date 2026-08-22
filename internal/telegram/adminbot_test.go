@@ -142,6 +142,24 @@ func TestAdminBotHandleCommands(t *testing.T) {
 			want:     `Número de fatura inválido: "abc"`,
 		},
 		{
+			name:     "paid rejects zero",
+			text:     "/paid 0",
+			invoices: &fakeInvoices{},
+			want:     `Número de fatura inválido: "0"`,
+		},
+		{
+			name:     "paid rejects negative",
+			text:     "/paid -3",
+			invoices: &fakeInvoices{},
+			want:     `Número de fatura inválido: "-3"`,
+		},
+		{
+			name:     "paid strips botname suffix from command",
+			text:     "/paid@MyInvoiceBot 3",
+			invoices: &fakeInvoices{byNumber: map[int64]*model.Invoice{3: {ID: "inv-3", Number: 3}}},
+			want:     "Fatura #3 marcada como paga ✓",
+		},
+		{
 			name: "status lists sent and overdue with BRL and dd/mm",
 			text: "/status",
 			invoices: &fakeInvoices{listResult: []*model.Invoice{
@@ -311,6 +329,12 @@ func TestAdminBotProcessUpdateFiltersAndReplies(t *testing.T) {
 	sent, err = bot.processUpdate(ctx, foreign)
 	if err != nil || sent || len(api.sent) != 0 {
 		t.Fatalf("foreign chat should be ignored silently: sent=%v err=%v api=%+v", sent, err, api.sent)
+	}
+
+	mediaOnly := Update{UpdateID: 5, Message: &Message{Chat: Chat{ID: 777}}}
+	sent, err = bot.processUpdate(ctx, mediaOnly)
+	if err != nil || sent || len(api.sent) != 0 {
+		t.Fatalf("empty-text message (sticker/photo) should be ignored silently: sent=%v err=%v api=%+v", sent, err, api.sent)
 	}
 
 	own := Update{UpdateID: 3, Message: &Message{Chat: Chat{ID: 777}, Text: "/clients"}}

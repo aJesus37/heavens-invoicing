@@ -73,7 +73,12 @@ func (b *AdminBot) Handle(ctx context.Context, text string) string {
 	if len(fields) == 0 || !strings.HasPrefix(fields[0], "/") {
 		return helpText
 	}
-	switch strings.ToLower(fields[0]) {
+	// Telegram appends @botname to commands in groups; strip it before matching.
+	cmd := strings.ToLower(fields[0])
+	if at := strings.IndexByte(cmd, '@'); at >= 0 {
+		cmd = cmd[:at]
+	}
+	switch cmd {
 	case "/paid":
 		if len(fields) != 2 {
 			return "Uso: /paid <número da fatura>"
@@ -175,7 +180,7 @@ func startOfDay(t time.Time) time.Time {
 // chats are ignored silently, messages from the admin chat are answered via
 // SendMessage with Handle's reply.
 func (b *AdminBot) processUpdate(ctx context.Context, u Update) (bool, error) {
-	if u.Message == nil || b.adminChatID == "" {
+	if u.Message == nil || u.Message.Text == "" || b.adminChatID == "" {
 		return false, nil
 	}
 	chatID := strconv.FormatInt(u.Message.Chat.ID, 10)
