@@ -1,1 +1,3 @@
+{{define "csrfField"}}<input type="hidden" name="csrf_token" value="{{CSRF}}">{{end}}
+
 {{define "statusBadge"}}<span class="badge badge-{{.Status}}">{{T (print "status." .Status)}}</span>{{end}}

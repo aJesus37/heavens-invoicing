@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jesus/invoice-app/internal/api"
+	"github.com/jesus/invoice-app/internal/auth"
 	"github.com/jesus/invoice-app/internal/db"
 	"github.com/jesus/invoice-app/internal/deliver"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -61,12 +62,13 @@ func main() {
 
 	startScheduler(ctx, repos, router, tgNotifier(tgClient, adminChatID), senderInfo)
 
-	webHandlers, err := web.New(repos, router, waSession, senderInfo)
+	authManager := auth.New(repos.Sessions, repos.Settings)
+	webHandlers, err := web.New(repos, router, waSession, senderInfo, authManager)
 	if err != nil {
 		log.Fatalf("web ui: %v", err)
 	}
 
-	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo), Web: webHandlers.Mux()})
+	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo), Web: webHandlers.Mux(), Auth: authManager})
 	httpSrv := &http.Server{
 		Addr:              addr,
 		Handler:           srv.Handler(),

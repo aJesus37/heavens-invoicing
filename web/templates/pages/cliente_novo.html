@@ -5,6 +5,7 @@
 
 <div class="panel">
 <form method="post" action="/clientes/novo" class="stack">
+{{template "csrfField" .}}
 <div class="grid">
 <div class="wide">
 <label for="name">{{T "label.name"}} *</label>

@@ -125,7 +125,7 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	h.render.renderPage(w, http.StatusOK, "dashboard.html", i18n.T(lang, "dash.title"), lang, dashData{
+	h.renderPage(w, r, http.StatusOK, "dashboard.html", i18n.T(lang, "dash.title"), lang, dashData{
 		Pending:  pendingRows,
 		Upcoming: upcoming,
 		Recent:   recentRows,

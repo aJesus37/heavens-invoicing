@@ -19,6 +19,10 @@ const (
 	SettingTelegramBotToken    = "telegram_bot_token"
 	SettingAdminTelegramChatID = "admin_telegram_chat_id"
 
+	// SettingAdminPasswordHash stores the bcrypt hash gating the web UI
+	// and API (auth package). Only the hash is stored, never the password.
+	SettingAdminPasswordHash = "admin_password_hash"
+
 	SettingDefaultPIXKey = "default_pix_key"
 
 	// SettingLocale selects the web UI language ("en" or "pt-BR").

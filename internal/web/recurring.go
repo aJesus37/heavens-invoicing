@@ -54,7 +54,7 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, row)
 	}
-	h.render.renderPage(w, http.StatusOK, "recorrentes.html", i18n.T(lang, "recurring.title"), lang, recorrentesData{Rows: rows})
+	h.renderPage(w, r, http.StatusOK, "recorrentes.html", i18n.T(lang, "recurring.title"), lang, recorrentesData{Rows: rows})
 }
 
 type recorrenteFormData struct {
@@ -86,7 +86,7 @@ func (h *Handlers) newRecurringForm(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
+	h.renderPage(w, r, http.StatusOK, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
 }
 
 // recurringFormBase assembles the select options for the new-recurring form.
@@ -134,7 +134,7 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data.Error = msg
-		h.render.renderPage(w, code, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
+		h.renderPage(w, r, code, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
 	}
 
 	clientID := r.FormValue("client_id")

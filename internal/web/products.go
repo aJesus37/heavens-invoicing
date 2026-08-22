@@ -26,12 +26,12 @@ func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "produtos.html", i18n.T(lang, "products.title"), lang, products)
+	h.renderPage(w, r, http.StatusOK, "produtos.html", i18n.T(lang, "products.title"), lang, products)
 }
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(lang, "products.new"), lang, &productForm{Action: "/produtos/novo"})
+	h.renderPage(w, r, http.StatusOK, "produto_form.html", i18n.T(lang, "products.new"), lang, &productForm{Action: "/produtos/novo"})
 }
 
 func formToProduct(r *http.Request) (*model.Product, productForm) {
@@ -56,12 +56,12 @@ func (h *Handlers) createProduct(w http.ResponseWriter, r *http.Request) {
 	cents, err := parseReais(lang, f.Price)
 	if err != nil {
 		f.Error = i18n.T(lang, "error.unit_price", err.Error())
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
+		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
 		return
 	}
 	if strings.TrimSpace(p.Name) == "" {
 		f.Error = i18n.T(lang, "error.name_required")
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
+		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
 		return
 	}
 	p.UnitPrice = cents
@@ -88,7 +88,7 @@ func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {
 		Editing:     true,
 		ID:          p.ID,
 	}
-	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, f)
+	h.renderPage(w, r, http.StatusOK, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, f)
 }
 
 func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +110,7 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 		f.Action = "/produtos/" + id + "/editar"
 		f.Editing = true
 		f.ID = id
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
+		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
 		return
 	}
 	if strings.TrimSpace(f.Name) == "" {
@@ -118,7 +118,7 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 		f.Action = "/produtos/" + id + "/editar"
 		f.Editing = true
 		f.ID = id
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
+		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
 		return
 	}
 	p.Name = strings.TrimSpace(f.Name)

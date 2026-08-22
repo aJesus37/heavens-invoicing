@@ -6,6 +6,17 @@
 <title>{{.Title}} · {{T "app.name"}}</title>
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+{{if .CSRFToken}}<meta name="csrf-token" content="{{.CSRFToken}}">{{end}}
+<script>
+// Every htmx request carries the double-submit CSRF token as a header. The
+// value lives in a non-HttpOnly cookie (set by the auth layer) so same-
+// origin JS can read it here; classic form posts send the same value via a
+// hidden csrf_token field, and the gate accepts either.
+document.body.addEventListener('htmx:config-request', function (evt) {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) { evt.detail.headers['X-CSRF-Token'] = meta.getAttribute('content'); }
+});
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -16,6 +27,12 @@
 <a href="/faturas">{{T "nav.invoices"}}</a>
 <a href="/recorrentes">{{T "nav.recurring"}}</a>
 <a href="/configuracoes">{{T "nav.settings"}}</a>
+{{if .Authed}}
+<form method="post" action="/logout" class="nav-logout">
+{{template "csrfField" .}}
+<button type="submit">{{T "nav.logout"}}</button>
+</form>
+{{end}}
 </nav>
 </header>
 <main>

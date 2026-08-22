@@ -62,12 +62,12 @@ func (h *Handlers) listClients(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "clientes.html", i18n.T(lang, "clients.title"), lang, clients)
+	h.renderPage(w, r, http.StatusOK, "clientes.html", i18n.T(lang, "clients.title"), lang, clients)
 }
 
 func (h *Handlers) newClientForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	h.render.renderPage(w, http.StatusOK, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, clientForm{})
+	h.renderPage(w, r, http.StatusOK, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, clientForm{})
 }
 
 func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
@@ -79,13 +79,13 @@ func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
 	c, f := formToClient(r)
 	if strings.TrimSpace(c.Name) == "" {
 		f.Error = i18n.T(lang, "error.name_required")
-		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
+		h.renderPage(w, r, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
 		return
 	}
 	clientLang, ok := i18n.Normalize(c.Language)
 	if !ok {
 		f.Error = i18n.T(lang, "error.language_invalid")
-		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
+		h.renderPage(w, r, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
 		return
 	}
 	c.Name = strings.TrimSpace(c.Name)
@@ -120,7 +120,7 @@ func (h *Handlers) showClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "cliente_detalhe.html", client.Name, lang, clientDetailData{
+	h.renderPage(w, r, http.StatusOK, "cliente_detalhe.html", client.Name, lang, clientDetailData{
 		Client:   client,
 		Invoices: rows,
 	})

@@ -1,0 +1,29 @@
+{{define "content"}}
+<h1>{{if .Setup}}{{T "auth.setup_title"}}{{else}}{{T "auth.login_title"}}{{end}}</h1>
+
+{{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
+
+<div class="panel">
+<form method="post" action="/login" class="stack">
+{{template "csrfField" .}}
+{{if .Setup}}
+<p class="hint">{{T "auth.setup_intro"}}</p>
+{{else}}
+<p class="hint">{{T "auth.signin_intro"}}</p>
+{{end}}
+<div>
+<label for="password">{{T "auth.password"}}</label>
+<input type="password" id="password" name="password" autocomplete="current-password" required>
+</div>
+{{if .Setup}}
+<div>
+<label for="confirm">{{T "auth.confirm_password"}}</label>
+<input type="password" id="confirm" name="confirm" autocomplete="new-password" required>
+</div>
+{{end}}
+<div class="actions">
+<button type="submit">{{if .Setup}}{{T "auth.set_password_button"}}{{else}}{{T "auth.login_button"}}{{end}}</button>
+</div>
+</form>
+</div>
+{{end}}

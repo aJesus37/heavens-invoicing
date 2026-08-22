@@ -2,6 +2,8 @@ package server
 
 import (
 	"net/http"
+
+	"github.com/jesus/invoice-app/internal/auth"
 )
 
 type Config struct {
@@ -11,6 +13,10 @@ type Config struct {
 	API http.Handler
 	// Web, when non-nil, is mounted at / and serves the html/template UI.
 	Web http.Handler
+	// Auth, when non-nil, gates the assembled mux: every route requires a
+	// valid session except /healthz, static assets and /login. It is the
+	// single enforcement choke point in front of Web and API alike.
+	Auth *auth.Manager
 }
 
 type Server struct {
@@ -30,5 +36,9 @@ func (s *Server) Handler() http.Handler {
 	if s.cfg.Web != nil {
 		mux.Handle("/", s.cfg.Web)
 	}
-	return mux
+	var h http.Handler = mux
+	if s.cfg.Auth != nil {
+		h = s.cfg.Auth.Gate(h)
+	}
+	return h
 }

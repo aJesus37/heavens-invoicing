@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jesus/invoice-app/internal/auth"
 	"github.com/jesus/invoice-app/internal/deliver"
 	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/pdf"
@@ -25,13 +26,15 @@ type Handlers struct {
 	wa      *whatsapp.Session
 	sender  pdf.SenderInfo
 	pairing *pairingManager
+	auth    *auth.Manager
 	render  *renderer
 	static  http.Handler
 }
 
 // New parses the embedded templates eagerly so a broken template fails at
-// startup rather than on first request.
-func New(r *repo.Repos, router *deliver.Router, wa *whatsapp.Session, sender pdf.SenderInfo) (*Handlers, error) {
+// startup rather than on first request. am carries the session/password
+// manager backing the login, logout and gate behavior.
+func New(r *repo.Repos, router *deliver.Router, wa *whatsapp.Session, sender pdf.SenderInfo, am *auth.Manager) (*Handlers, error) {
 	rnd, err := newRenderer(assets.Files)
 	if err != nil {
 		return nil, err
@@ -46,6 +49,7 @@ func New(r *repo.Repos, router *deliver.Router, wa *whatsapp.Session, sender pdf
 		wa:      wa,
 		sender:  sender,
 		pairing: newPairing(wa),
+		auth:    am,
 		render:  rnd,
 		static:  http.FileServerFS(staticFS),
 	}
@@ -57,6 +61,10 @@ func (h *Handlers) Mux() *http.ServeMux {
 
 	mux.HandleFunc("GET /{$}", h.dashboard)
 	mux.Handle("GET /static/", http.StripPrefix("/static", h.static))
+
+	mux.HandleFunc("GET /login", h.loginForm)
+	mux.HandleFunc("POST /login", h.loginSubmit)
+	mux.HandleFunc("POST /logout", h.logout)
 
 	mux.HandleFunc("GET /clientes", h.listClients)
 	mux.HandleFunc("GET /clientes/novo", h.newClientForm)

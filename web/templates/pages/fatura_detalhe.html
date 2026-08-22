@@ -55,6 +55,7 @@
         {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>{{T "detail.send"}}</button>
 {{if ne .Inv.Status "cancelled"}}
 <form method="post" action="/faturas/{{.Inv.ID}}/marcar-paga" style="display:inline;">
+{{template "csrfField" .}}
 <button type="submit">{{T "detail.mark_paid"}}</button>
 </form>
 {{end}}

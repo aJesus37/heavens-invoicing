@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/auth"
 	"github.com/jesus/invoice-app/internal/db"
 	"github.com/jesus/invoice-app/internal/deliver"
 	"github.com/jesus/invoice-app/internal/pdf"
@@ -31,7 +32,8 @@ func newTestEnv(t *testing.T) (*httptest.Server, *repo.Repos) {
 	repos := repo.New(conn)
 
 	router := deliver.NewRouter(repos.Invoices, nil, nil, nil, nil, nil)
-	handlers, err := web.New(repos, router, nil, pdf.SenderInfo{})
+	authManager := auth.New(repos.Sessions, repos.Settings)
+	handlers, err := web.New(repos, router, nil, pdf.SenderInfo{}, authManager)
 	if err != nil {
 		t.Fatalf("web.New: %v", err)
 	}

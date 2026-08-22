@@ -5,6 +5,7 @@
 
 <div class="panel">
 <form method="post" action="/faturas/nova" class="stack">
+{{template "csrfField" .}}
 <div class="grid">
 <div>
 <label for="client_id">{{T "label.client"}} *</label>

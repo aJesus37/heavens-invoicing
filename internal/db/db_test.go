@@ -43,8 +43,8 @@ func TestOpenIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	// One row per applied migration; re-opening must not add any.
-	if count != 2 {
-		t.Fatalf("schema_meta rows = %d, want 2 (migrations re-applied)", count)
+	if count != 3 {
+		t.Fatalf("schema_meta rows = %d, want 3 (migrations re-applied)", count)
 	}
 
 	for _, table := range []string{"clients", "products", "invoices", "invoice_items", "recurring_schedules", "settings", "sessions"} {

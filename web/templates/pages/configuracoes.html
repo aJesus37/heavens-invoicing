@@ -5,6 +5,7 @@
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
 <form method="post" action="/configuracoes" class="stack">
+{{template "csrfField" .}}
 <div class="panel">
 <h2 style="margin-top:0;">{{T "group.language"}}</h2>
 <label for="locale">{{T "field.locale"}}</label>

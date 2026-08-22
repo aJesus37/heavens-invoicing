@@ -22,6 +22,7 @@
 <td>{{if .Active}}{{T "common.yes"}}{{else}}{{T "common.no"}}{{end}}</td>
 <td>
 <form method="post" action="/recorrentes/{{.ID}}/excluir">
+{{template "csrfField" .}}
 <button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
 </form>
 </td>

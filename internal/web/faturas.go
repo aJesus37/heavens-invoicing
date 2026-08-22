@@ -84,7 +84,7 @@ func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
 		filters = append(filters, statusFilter{Key: f.Key, Label: f.label(lang), Active: f.Key == status})
 	}
 
-	h.render.renderPage(w, http.StatusOK, "faturas.html", i18n.T(lang, "invoices.title"), lang, faturaListData{
+	h.renderPage(w, r, http.StatusOK, "faturas.html", i18n.T(lang, "invoices.title"), lang, faturaListData{
 		Filters: filters,
 		Rows:    rows,
 	})
@@ -136,7 +136,7 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 		IssueDate: today.Format("2006-01-02"),
 		DueDate:   today.AddDate(0, 0, 15).Format("2006-01-02"),
 	}
-	h.render.renderPage(w, http.StatusOK, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
+	h.renderPage(w, r, http.StatusOK, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
 }
 
 // readItemRows collects the fixed set of item inputs, dropping rows that
@@ -216,7 +216,7 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 			Error:     msg,
 		}
 		copy(data.Items[:], readItemRows(r))
-		h.render.renderPage(w, code, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
+		h.renderPage(w, r, code, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
 	}
 
 	items, err := validateItemRows(readItemRows(r), lang)
@@ -299,7 +299,7 @@ func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
 		methods = append(methods, selectOption{Value: m, Label: i18n.T(lang, "method."+m)})
 	}
 
-	h.render.renderPage(w, http.StatusOK, "fatura_detalhe.html",
+	h.renderPage(w, r, http.StatusOK, "fatura_detalhe.html",
 		i18n.T(lang, "detail.title", inv.Number),
 		lang,
 		faturaDetailData{
