@@ -53,8 +53,10 @@ language and PIX key live on the client record.
 
 ## Production deploy (docker compose)
 
-The app is built as a single static binary (no CGO) and runs on `scratch`. A
-named volume `invoice-app-data` persists the SQLite DB at `/data`.
+The app is built as a single static binary (no CGO) and runs on `scratch`.
+It stores its SQLite DB at `./data` relative to its working directory. The
+container's working directory is `/data` and the `invoice-app-data` volume is
+mounted there, so the live database lives at `/data/data/app.db`.
 
 ```sh
 # Build and start in the background
@@ -66,12 +68,12 @@ docker compose up -d --build
 
 The container listens on `PORT` (default `8010`) and is published on the host as
 `${PORT:-8010}:8010`. Data lives in the `invoice-app-data` volume mounted at
-`/data`.
+`/data` (database file: `/data/data/app.db`).
 
 ### Backup
 
 The entire state is the SQLite database file (plus the WhatsApp session) under
-`/data`. Back it up by copying the volume, e.g.:
+`/data/data`. Back it up by copying the volume, e.g.:
 
 ```sh
 docker compose down
@@ -85,7 +87,7 @@ docker compose up -d
 | Variable  | Meaning | Default |
 |-----------|---------|---------|
 | `PORT`    | TCP port the app listens on (host:port inside container) | `8080` |
-| `DATA_DIR`| **Reserved for future use.** The app does not currently read this; data is stored at `./data` relative to the working directory. In the container the working directory is `/`, so `./data` resolves to `/data` (the volume mount). | `/data` |
+| `DATA_DIR`| **Reserved for future use.** The app does not currently read this; data is stored at `./data` relative to the working directory. In the container the working directory is `/data`, so `./data` resolves to `/data/data` (the volume mount). | `/data` |
 
 No other environment variables are read by the app. SMTP, Telegram, WhatsApp,
 PIX, locale, and sender info are all stored via the Settings UI.

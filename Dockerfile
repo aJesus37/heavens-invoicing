@@ -25,8 +25,10 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 COPY --from=build /out/invoice-app /invoice-app
 
 # The app stores its SQLite DB under ./data relative to the working directory.
-# Running from "/" makes ./data resolve to /data, where the volume is mounted.
-WORKDIR /
+# The production volume is mounted at /data, so WORKDIR /data makes ./data
+# resolve to /data/data — this is where the live database already lives and
+# must stay, otherwise a redeploy would orphan all existing data.
+WORKDIR /data
 ENV PORT=8010
 EXPOSE 8010
 CMD ["/invoice-app"]

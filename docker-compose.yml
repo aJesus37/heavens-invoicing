@@ -10,16 +10,16 @@ services:
     environment:
       # PORT is read by the app (defaults to 8080 if unset; 8010 in prod).
       PORT: "${PORT:-8010}"
-      # DATA_DIR is reserved for future use; the app currently stores data at
-      # ./data relative to the working directory (the container runs from "/",
-      # so it resolves to /data where the volume below is mounted).
-      DATA_DIR: "/data"
     volumes:
+      # Reuse the existing named volume that already holds the live database
+      # at /data/data/app.db (container WORKDIR is /data, app stores ./data).
       - invoice-app-data:/data
     restart: unless-stopped
     # The scratch image has no probe binary, so an in-container healthcheck is
-    # omitted. The app exposes GET /healthz for external monitoring (e.g. a
-    # reverse proxy or host-side probe).
+    # omitted. The app exposes GET /healthz for external monitoring.
 
 volumes:
+  # External: the volume already exists on the host (created by the earlier
+  # manual deployment) and must not be re-created/renamed by compose.
   invoice-app-data:
+    external: true
