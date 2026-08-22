@@ -207,6 +207,78 @@ func TestEmailSendReminder(t *testing.T) {
 	}
 }
 
+// TestEmailLocalizesPerClientLanguage pins subject/body selection by the
+// client's stored language; an unknown value keeps pt-BR.
+func TestEmailLocalizesPerClientLanguage(t *testing.T) {
+	tests := []struct {
+		name            string
+		language        string
+		invoiceSubject  string
+		reminderSubject string
+		bodyMarker      string
+		notWant         []string // other locale's unique markers
+	}{
+		{
+			name:            "pt-BR client",
+			language:        "pt-BR",
+			invoiceSubject:  "Fatura #000001",
+			reminderSubject: "Lembrete de vencimento - Fatura #000001",
+			bodyMarker:      "Olá Acme Ltda",
+			notWant:         []string{"Hello Acme", "Payment reminder"},
+		},
+		{
+			name:            "en client",
+			language:        "en",
+			invoiceSubject:  "Invoice #000001",
+			reminderSubject: "Payment reminder - Invoice #000001",
+			bodyMarker:      "Hello Acme Ltda",
+			notWant:         []string{"Olá Acme", "Lembrete"},
+		},
+		{
+			name:            "unknown language falls back to pt-BR",
+			language:        "klingon",
+			invoiceSubject:  "Fatura #000001",
+			reminderSubject: "Lembrete de vencimento - Fatura #000001",
+			bodyMarker:      "Olá Acme Ltda",
+			notWant:         []string{"Hello Acme"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			sender := &fakeSender{}
+			d := deliver.NewEmail(sender, "billing@me.com", "")
+			client := testClient(strPtr("to@acme.com"))
+			client.Language = tt.language
+
+			if err := d.SendInvoice(ctx, client, testInvoice(), []byte("pdf")); err != nil {
+				t.Fatal(err)
+			}
+			call := sender.calls[0]
+			if call.subject != tt.invoiceSubject {
+				t.Errorf("invoice subject = %q, want %q", call.subject, tt.invoiceSubject)
+			}
+			assertContains(t, call.body, tt.bodyMarker)
+			for _, m := range tt.notWant {
+				if strings.Contains(call.body+call.subject, m) {
+					t.Errorf("language %q: invoice unexpectedly contains %q", tt.language, m)
+				}
+			}
+
+			if err := d.SendReminder(ctx, client, testInvoice()); err != nil {
+				t.Fatal(err)
+			}
+			call = sender.calls[1]
+			if call.subject != tt.reminderSubject {
+				t.Errorf("reminder subject = %q, want %q", call.subject, tt.reminderSubject)
+			}
+			for _, want := range []string{tt.bodyMarker, "05/09/2026"} {
+				assertContains(t, call.body, want)
+			}
+		})
+	}
+}
+
 func TestEmailMissingRecipient(t *testing.T) {
 	ctx := context.Background()
 	pdf := []byte("pdf")

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -33,21 +34,21 @@ type BotAPI interface {
 	GetUpdates(ctx context.Context, offset int64) ([]Update, error)
 }
 
-const helpText = `Comandos:
-/paid <número> - marca a fatura como paga
-/status - faturas pendentes
-/upcoming - vencimentos dos próximos 7 dias
-/clients - lista de clientes`
-
-const upcomingEmptyText = "Nenhuma fatura vence nos próximos 7 dias."
+// LocaleFunc supplies the admin-facing reply language. It is consulted at
+// Handle time so a locale saved in settings applies to the very next
+// command without restarting the bot.
+type LocaleFunc func() i18n.Lang
 
 // AdminBot answers commands from the admin chat and polls Telegram for
-// updates. All dependencies are injected; Handle carries the pure command logic.
+// updates. All dependencies are injected; Handle carries the pure command
+// logic. Replies follow the admin locale (from the resolver), never the
+// per-client languages used by client-facing messages.
 type AdminBot struct {
 	api         BotAPI
 	adminChatID string
 	invoices    InvoiceRepo
 	clients     ClientRepo
+	locale      LocaleFunc
 
 	now      func() time.Time // injectable clock
 	interval time.Duration    // poll interval
@@ -55,23 +56,38 @@ type AdminBot struct {
 	lastOffset int64 // highest update_id already seen
 }
 
-func NewAdminBot(api BotAPI, adminChatID string, invoices InvoiceRepo, clients ClientRepo) *AdminBot {
+// DefaultLocale is used when no resolver is injected: the historical pt-BR.
+const DefaultLocale = i18n.PtBR
+
+func NewAdminBot(api BotAPI, adminChatID string, invoices InvoiceRepo, clients ClientRepo, lang LocaleFunc) *AdminBot {
 	return &AdminBot{
 		api:         api,
 		adminChatID: strings.TrimSpace(adminChatID),
 		invoices:    invoices,
 		clients:     clients,
+		locale:      lang,
 		now:         time.Now,
 		interval:    3 * time.Second,
 	}
 }
 
+func (b *AdminBot) lang() i18n.Lang {
+	if b.locale == nil {
+		return DefaultLocale
+	}
+	if l, ok := i18n.Parse(string(b.locale())); ok {
+		return l
+	}
+	return DefaultLocale
+}
+
 // Handle processes one incoming message text and returns the reply string.
 // Exported so the scheduler can reuse it for pending confirmations.
 func (b *AdminBot) Handle(ctx context.Context, text string) string {
+	lang := b.lang()
 	fields := strings.Fields(text)
 	if len(fields) == 0 || !strings.HasPrefix(fields[0], "/") {
-		return helpText
+		return i18n.T(lang, "bot.help")
 	}
 	// Telegram appends @botname to commands in groups; strip it before matching.
 	cmd := strings.ToLower(fields[0])
@@ -81,57 +97,57 @@ func (b *AdminBot) Handle(ctx context.Context, text string) string {
 	switch cmd {
 	case "/paid":
 		if len(fields) != 2 {
-			return "Uso: /paid <número da fatura>"
+			return i18n.T(lang, "bot.usage_paid")
 		}
-		return b.handlePaid(ctx, fields[1])
+		return b.handlePaid(ctx, lang, fields[1])
 	case "/status":
-		return b.handlePending(ctx, "Nenhuma fatura pendente.")
+		return b.handlePending(ctx, lang)
 	case "/upcoming":
-		return b.handleUpcoming(ctx)
+		return b.handleUpcoming(ctx, lang)
 	case "/clients":
-		return b.handleClients(ctx)
+		return b.handleClients(ctx, lang)
 	default:
-		return helpText
+		return i18n.T(lang, "bot.help")
 	}
 }
 
-func (b *AdminBot) handlePaid(ctx context.Context, arg string) string {
+func (b *AdminBot) handlePaid(ctx context.Context, lang i18n.Lang, arg string) string {
 	number, err := strconv.ParseInt(arg, 10, 64)
 	if err != nil || number < 1 {
-		return fmt.Sprintf("Número de fatura inválido: %q", arg)
+		return i18n.T(lang, "bot.invalid_number", arg)
 	}
 	inv, err := b.invoices.GetByNumber(ctx, number)
 	if errors.Is(err, repo.ErrNotFound) {
-		return fmt.Sprintf("Fatura #%d não encontrada", number)
+		return i18n.T(lang, "bot.not_found", number)
 	}
 	if err != nil {
-		return fmt.Sprintf("Erro ao buscar a fatura #%d: %v", number, err)
+		return i18n.T(lang, "bot.lookup_error", number, err)
 	}
 	if err := b.invoices.UpdateStatus(ctx, inv.ID, "paid"); err != nil {
-		return fmt.Sprintf("Erro ao marcar a fatura #%d como paga: %v", number, err)
+		return i18n.T(lang, "bot.paid_error", number, err)
 	}
-	return fmt.Sprintf("Fatura #%d marcada como paga ✓", number)
+	return i18n.T(lang, "bot.paid_ok", number)
 }
 
-func (b *AdminBot) handlePending(ctx context.Context, emptyReply string) string {
+func (b *AdminBot) handlePending(ctx context.Context, lang i18n.Lang) string {
 	invoices, err := b.invoices.ListByStatus(ctx, "sent", "overdue")
 	if err != nil {
-		return fmt.Sprintf("Erro ao listar faturas pendentes: %v", err)
+		return i18n.T(lang, "bot.list_error", err)
 	}
 	if len(invoices) == 0 {
-		return emptyReply
+		return i18n.T(lang, "bot.pending_empty")
 	}
 	lines := make([]string, 0, len(invoices))
 	for _, inv := range invoices {
-		lines = append(lines, invoiceLine(inv))
+		lines = append(lines, invoiceLine(lang, inv))
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (b *AdminBot) handleUpcoming(ctx context.Context) string {
+func (b *AdminBot) handleUpcoming(ctx context.Context, lang i18n.Lang) string {
 	invoices, err := b.invoices.ListByStatus(ctx, "sent", "overdue")
 	if err != nil {
-		return fmt.Sprintf("Erro ao listar faturas pendentes: %v", err)
+		return i18n.T(lang, "bot.list_error", err)
 	}
 	nowLoc := b.now()
 	today := startOfDay(nowLoc)
@@ -143,21 +159,21 @@ func (b *AdminBot) handleUpcoming(ctx context.Context) string {
 		if due.Before(today) || !due.Before(limit) {
 			continue
 		}
-		lines = append(lines, invoiceLine(inv))
+		lines = append(lines, invoiceLine(lang, inv))
 	}
 	if len(lines) == 0 {
-		return upcomingEmptyText
+		return i18n.T(lang, "bot.upcoming_empty")
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (b *AdminBot) handleClients(ctx context.Context) string {
+func (b *AdminBot) handleClients(ctx context.Context, lang i18n.Lang) string {
 	clients, err := b.clients.List(ctx)
 	if err != nil {
-		return fmt.Sprintf("Erro ao listar clientes: %v", err)
+		return i18n.T(lang, "bot.clients_error", err)
 	}
 	if len(clients) == 0 {
-		return "Nenhum cliente cadastrado."
+		return i18n.T(lang, "bot.clients_empty")
 	}
 	names := make([]string, 0, len(clients))
 	for _, c := range clients {
@@ -166,8 +182,8 @@ func (b *AdminBot) handleClients(ctx context.Context) string {
 	return strings.Join(names, "\n")
 }
 
-func invoiceLine(inv *model.Invoice) string {
-	return fmt.Sprintf("Fatura #%d - %s - venc. %s - %s",
+func invoiceLine(lang i18n.Lang, inv *model.Invoice) string {
+	return i18n.T(lang, "bot.invoice_line",
 		inv.Number, pdf.FormatBRL(inv.Total), inv.DueDate.Format("02/01"), inv.Status)
 }
 

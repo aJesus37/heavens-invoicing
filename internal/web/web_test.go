@@ -30,7 +30,7 @@ func newTestEnv(t *testing.T) (*httptest.Server, *repo.Repos) {
 	t.Cleanup(func() { conn.Close() })
 	repos := repo.New(conn)
 
-	router := deliver.NewRouter(repos.Invoices, nil, nil, nil, nil)
+	router := deliver.NewRouter(repos.Invoices, nil, nil, nil, nil, nil)
 	handlers, err := web.New(repos, router, nil, pdf.SenderInfo{})
 	if err != nil {
 		t.Fatalf("web.New: %v", err)

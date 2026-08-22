@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"strings"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -26,37 +27,22 @@ func NewEmail(sender MailSender, from, pixFallback string) *EmailDeliverer {
 
 func (e *EmailDeliverer) Name() string { return "email" }
 
-// Templates are fixed constants for now; user-editable templates stored in
-// the settings table are deferred until there is a concrete need.
-
-const invoiceBodyTmpl = `Olá {{.Client.Name}},
-
-Segue em anexo a fatura #{{.Invoice.Number}}.{{.PIXSection}}
-
-Qualquer dúvida, estamos à disposição.
-
-Atenciosamente.`
-
-const reminderBodyTmpl = `Olá {{.Client.Name}},
-
-Lembramos que a fatura #{{.Invoice.Number}}, com vencimento em {{.Invoice.DueDate}}, ainda está pendente.{{.PIXSection}}
-
-Caso o pagamento já tenha sido realizado, por favor desconsidere esta mensagem.
-
-Atenciosamente.`
-
-// pixSectionTmpl is rendered into the message body when a PIX key is
-// available; when there is none the section is omitted entirely.
-const pixSectionTmpl = "\n\nPara pagamento via PIX, utilize a chave {{.PIXKey}}."
+// Message texts come from the i18n catalogs (email.* keys), selected by
+// the client's language. The attachment filename stays "fatura-<n>.pdf" on
+// purpose: it is an identifier-like artifact, not prose, and a stable name
+// keeps mail clients from treating resends as unrelated threads.
+// Templates stored in the settings table remain deferred until there is a
+// concrete need.
 
 func (e *EmailDeliverer) SendInvoice(ctx context.Context, c model.Client, inv model.Invoice, pdf []byte) error {
 	from, to, err := e.addresses(c)
 	if err != nil {
 		return err
 	}
-	num := fmt.Sprintf("%06d", inv.Number)
-	subject := "Fatura #" + num
-	body := replacePlaceholders(invoiceBodyTmpl, c.Name, num, "", pixSection(pixKeyFor(inv, e.pixFallback)))
+	lang := clientLang(c)
+	num := invoiceNumber(inv)
+	subject := i18n.T(lang, "email.subject_invoice", num)
+	body := i18n.T(lang, "email.body_invoice", c.Name, num, emailPIXSection(lang, pixKeyFor(inv, e.pixFallback)))
 	return e.sender.Send(from, []string{to}, subject, body, map[string][]byte{"fatura-" + num + ".pdf": pdf})
 }
 
@@ -65,9 +51,11 @@ func (e *EmailDeliverer) SendReminder(ctx context.Context, c model.Client, inv m
 	if err != nil {
 		return err
 	}
-	num := fmt.Sprintf("%06d", inv.Number)
-	subject := "Lembrete de vencimento - Fatura #" + num
-	body := replacePlaceholders(reminderBodyTmpl, c.Name, num, inv.DueDate.Format("02/01/2006"), pixSection(pixKeyFor(inv, e.pixFallback)))
+	lang := clientLang(c)
+	num := invoiceNumber(inv)
+	subject := i18n.T(lang, "email.subject_reminder", num)
+	body := i18n.T(lang, "email.body_reminder", c.Name, num, formatDate(inv.DueDate),
+		emailPIXSection(lang, pixKeyFor(inv, e.pixFallback)))
 	return e.sender.Send(from, []string{to}, subject, body, nil)
 }
 
@@ -111,20 +99,4 @@ func pixKeyFor(inv model.Invoice, fallback string) string {
 		return *inv.PIXKey
 	}
 	return fallback
-}
-
-func pixSection(key string) string {
-	if key == "" {
-		return ""
-	}
-	return strings.NewReplacer("{{.PIXKey}}", key).Replace(pixSectionTmpl)
-}
-
-func replacePlaceholders(tmpl, clientName, number, dueDate, pixSection string) string {
-	return strings.NewReplacer(
-		"{{.Client.Name}}", clientName,
-		"{{.Invoice.Number}}", number,
-		"{{.Invoice.DueDate}}", dueDate,
-		"{{.PIXSection}}", pixSection,
-	).Replace(tmpl)
 }

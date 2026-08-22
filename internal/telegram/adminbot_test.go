@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/repo"
 )
@@ -76,7 +77,7 @@ func newTestBot(invoices *fakeInvoices, clients *fakeClients) (*AdminBot, *fakeI
 	if clients == nil {
 		clients = &fakeClients{}
 	}
-	bot := NewAdminBot(nil, "777", invoices, clients)
+	bot := NewAdminBot(nil, "777", invoices, clients, nil)
 	bot.now = func() time.Time { return frozenNow }
 	return bot, invoices, clients
 }
@@ -251,6 +252,48 @@ func TestAdminBotHandleCommands(t *testing.T) {
 			}
 			if tt.check != nil {
 				tt.check(t, got, inv, cl)
+			}
+		})
+	}
+}
+
+// TestAdminBotRepliesFollowLocale pins that command replies resolve their
+// language at Handle time from the injected locale func (the stored admin
+// setting), not from the per-client languages.
+func TestAdminBotRepliesFollowLocale(t *testing.T) {
+	ctx := context.Background()
+	invoices := &fakeInvoices{byNumber: map[int64]*model.Invoice{3: {ID: "inv-3", Number: 3}}}
+	locale := i18n.PtBR
+	bot := NewAdminBot(nil, "777", invoices, &fakeClients{}, func() i18n.Lang { return locale })
+	bot.now = func() time.Time { return frozenNow }
+
+	if got := bot.Handle(ctx, "/paid 3"); got != "Fatura #3 marcada como paga ✓" {
+		t.Fatalf("pt-BR reply = %q", got)
+	}
+
+	// Admin switches the app language; the very next command answers in en.
+	locale = i18n.En
+	if got := bot.Handle(ctx, "/paid 3"); got != "Invoice #3 marked as paid ✓" {
+		t.Fatalf("en reply = %q", got)
+	}
+
+	// Unknown commands render the help text in the current locale.
+	if got := bot.Handle(ctx, "/bogus"); !strings.Contains(got, "/status - pending invoices") {
+		t.Fatalf("en help = %q", got)
+	}
+}
+
+func TestAdminBotNilOrBrokenLocaleFallsBackToPtBR(t *testing.T) {
+	ctx := context.Background()
+	for name, resolver := range map[string]LocaleFunc{
+		"nil":     nil,
+		"garbage": func() i18n.Lang { return i18n.Lang("xx") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			bot := NewAdminBot(nil, "777", &fakeInvoices{}, &fakeClients{}, resolver)
+			bot.now = func() time.Time { return frozenNow }
+			if got := bot.Handle(ctx, "/status"); got != "Nenhuma fatura pendente." {
+				t.Fatalf("reply = %q, want pt-BR empty status", got)
 			}
 		})
 	}

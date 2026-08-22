@@ -53,6 +53,7 @@ func main() {
 	senderInfo := setupSenderInfo(ctx, repos.Settings)
 	router := deliver.NewRouter(repos.Invoices,
 		tgNotifier(tgClient, adminChatID),
+		settingsLocale(repos.Settings),
 		setupEmail(ctx, repos.Settings, pixFallback),
 		setupWhatsAppDeliverer(waSession, pixFallback),
 		setupTelegramDeliverer(tgClient, pixFallback),

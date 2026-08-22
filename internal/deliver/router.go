@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -49,27 +50,53 @@ type channelTarget struct {
 	deliverer Deliverer
 }
 
+// defaultLang keeps pt-BR admin summaries when no locale resolver is
+// injected, matching the historical (pre-i18n) wording.
+const defaultLang = i18n.PtBR
+
+// AdminLocaleFunc supplies the language for admin-facing notifications.
+// It is resolved per send so settings changes apply immediately; a nil
+// func (or one returning an unsupported value) keeps the pt-BR default.
+type AdminLocaleFunc func() i18n.Lang
+
 // Router orchestrates invoice/reminder delivery across channels: it picks
 // the target channels for a delivery method, collects per-channel results,
 // marks the invoice sent when at least one channel succeeds, and reports
 // every outcome to the admin notifier. Deliverers may be nil; routing to a
 // nil deliverer yields a "not configured" error result instead of a panic.
+//
+// Language split: texts addressed to the client are localized by the
+// client's stored preference inside each deliverer; the admin summary
+// emitted here follows the injected admin locale instead.
 type Router struct {
-	invoices InvoiceStatusUpdater // required when SendInvoice can succeed
-	notifier Notifier             // optional; nil skips notifications
-	email    Deliverer
-	whatsapp Deliverer
-	telegram Deliverer
+	invoices  InvoiceStatusUpdater // required when SendInvoice can succeed
+	notifier  Notifier             // optional; nil skips notifications
+	adminLang AdminLocaleFunc      // locale for admin summaries
+	email     Deliverer
+	whatsapp  Deliverer
+	telegram  Deliverer
 }
 
-func NewRouter(invoices InvoiceStatusUpdater, notifier Notifier, email, whatsapp, telegram Deliverer) *Router {
+func NewRouter(invoices InvoiceStatusUpdater, notifier Notifier, adminLang AdminLocaleFunc, email, whatsapp, telegram Deliverer) *Router {
 	return &Router{
-		invoices: invoices,
-		notifier: notifier,
-		email:    email,
-		whatsapp: whatsapp,
-		telegram: telegram,
+		invoices:  invoices,
+		notifier:  notifier,
+		adminLang: adminLang,
+		email:     email,
+		whatsapp:  whatsapp,
+		telegram:  telegram,
 	}
+}
+
+// locale resolves the current admin-notification language.
+func (r *Router) locale() i18n.Lang {
+	if r.adminLang == nil {
+		return defaultLang
+	}
+	if l, ok := i18n.Parse(string(r.adminLang())); ok {
+		return l
+	}
+	return defaultLang
 }
 
 // SendInvoice delivers the rendered invoice PDF through the requested
@@ -103,14 +130,15 @@ func (r *Router) SendReminder(ctx context.Context, c model.Client, inv model.Inv
 
 // summaryKind supplies the admin-summary wording, which differs between
 // invoices ("Fatura ... enviada") and reminders ("Lembrete ... enviado").
+// The fields are i18n key names resolved per notification.
 type summaryKind struct {
-	noun string
-	sent string
+	nounKey string // admin.invoice_noun | admin.reminder_noun
+	sentKey string // admin.summary_invoice_sent | admin.summary_reminder_sent
 }
 
 var (
-	invoiceKind  = summaryKind{noun: "Fatura", sent: "enviada"}
-	reminderKind = summaryKind{noun: "Lembrete da fatura", sent: "enviado"}
+	invoiceKind  = summaryKind{nounKey: "admin.invoice_noun", sentKey: "admin.summary_invoice_sent"}
+	reminderKind = summaryKind{nounKey: "admin.reminder_noun", sentKey: "admin.summary_reminder_sent"}
 )
 
 // targets resolves which channels a delivery attempts. A single method
@@ -176,34 +204,33 @@ func (r *Router) run(ctx context.Context, c model.Client, inv model.Invoice, tar
 	return results, statusErr
 }
 
-// notifyOutcome sends the admin summary; notification failures are ignored
-// on purpose so a broken admin channel cannot mask or alter delivery
-// results.
+// notifyOutcome sends the admin summary in the admin locale; notification
+// failures are ignored on purpose so a broken admin channel cannot mask or
+// alter delivery results.
 func (r *Router) notifyOutcome(ctx context.Context, number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string, statusErr error) {
 	if r.notifier == nil {
 		return
 	}
-	_ = r.notifier.Notify(ctx, outcomeText(number, clientName, kind, results, ok, statusErr))
+	_ = r.notifier.Notify(ctx, outcomeText(r.locale(), number, clientName, kind, results, ok, statusErr))
 }
 
-func outcomeText(number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string, statusErr error) string {
-	numbered := fmt.Sprintf("%s #%06d", kind.noun, number)
+func outcomeText(lang i18n.Lang, number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string, statusErr error) string {
 	if len(ok) > 0 {
-		text := numbered + fmt.Sprintf(" %s para %s via %s", kind.sent, clientName, strings.Join(ok, ", "))
+		text := i18n.T(lang, kind.sentKey, number, clientName, strings.Join(ok, ", "))
 		if statusErr != nil {
-			text += ", mas falha ao marcar como enviada: " + statusErr.Error()
+			text += i18n.T(lang, "admin.status_update_failed", statusErr)
 		}
 		return text
 	}
-	numbered += fmt.Sprintf(" para %s falhou", clientName)
+	failed := i18n.T(lang, "admin.failed", i18n.T(lang, kind.nounKey), number, clientName)
 	if len(results) == 0 {
-		return numbered + ": cliente sem canal de envio configurado"
+		return failed + ": " + i18n.T(lang, "admin.no_channels")
 	}
 	parts := make([]string, 0, len(results))
 	for _, res := range results {
 		parts = append(parts, res.Channel+": "+res.Err.Error())
 	}
-	return numbered + ": " + strings.Join(parts, "; ")
+	return failed + ": " + strings.Join(parts, "; ")
 }
 
 func hasText(p *string) bool {

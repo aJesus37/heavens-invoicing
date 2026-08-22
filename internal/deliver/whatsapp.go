@@ -3,7 +3,6 @@ package deliver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jesus/invoice-app/internal/model"
@@ -32,9 +31,10 @@ func (d *WhatsAppDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	if err != nil {
 		return err
 	}
-	num := fmt.Sprintf("%06d", inv.Number)
-	caption := fmt.Sprintf("Fatura #%s para %s", num, c.Name)
-	caption += pixLine(pixKeyFor(inv, d.pixFallback))
+	num := invoiceNumber(inv)
+	lang := clientLang(c)
+	caption := invoiceCaption(lang, c, inv)
+	caption += pixLine(lang, pixKeyFor(inv, d.pixFallback))
 	return d.api.SendDocument(ctx, jid, "fatura-"+num+".pdf", pdf, caption)
 }
 
@@ -43,10 +43,9 @@ func (d *WhatsAppDeliverer) SendReminder(ctx context.Context, c model.Client, in
 	if err != nil {
 		return err
 	}
-	num := fmt.Sprintf("%06d", inv.Number)
-	text := fmt.Sprintf("Lembrete: a fatura #%s, com vencimento em %s, ainda está pendente.",
-		num, inv.DueDate.Format("02/01/2006"))
-	text += pixLine(pixKeyFor(inv, d.pixFallback))
+	lang := clientLang(c)
+	text := reminderText(lang, inv)
+	text += pixLine(lang, pixKeyFor(inv, d.pixFallback))
 	return d.api.SendMessage(ctx, jid, text)
 }
 

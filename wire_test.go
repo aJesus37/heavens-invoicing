@@ -80,7 +80,7 @@ func TestRunAdminBotRestartsAndResetsBackoff(t *testing.T) {
 	}()
 
 	api := &flakyAPI{hold: 30 * time.Millisecond} // > max: every run "was healthy long"
-	bot := telegram.NewAdminBot(api, "777", nil, nil)
+	bot := telegram.NewAdminBot(api, "777", nil, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

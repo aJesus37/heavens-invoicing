@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -89,7 +90,8 @@ type routerFixture struct {
 }
 
 // newRouter builds a router with all three channels configured unless the
-// corresponding entry of skip is true.
+// corresponding entry of skip is true. Admin locale defaults to nil
+// (pt-BR fallback) so legacy assertions keep passing.
 func newRouter(skip ...bool) routerFixture {
 	want := func(i int) bool { return i < len(skip) && skip[i] }
 	f := routerFixture{
@@ -109,7 +111,7 @@ func newRouter(skip ...bool) routerFixture {
 		f.tg = &fakeChannel{name: "telegram"}
 		tg = f.tg
 	}
-	f.router = deliver.NewRouter(f.updater, f.notifier, email, wa, tg)
+	f.router = deliver.NewRouter(f.updater, f.notifier, nil, email, wa, tg)
 	return f
 }
 
@@ -350,5 +352,70 @@ func TestRouterStatusUpdateFailureSurfaces(t *testing.T) {
 		if !strings.Contains(f.notifier.texts[0], want) {
 			t.Fatalf("notify %q missing %q", f.notifier.texts[0], want)
 		}
+	}
+}
+
+// TestRouterAdminLocaleVsClientLanguage pins the language split: the
+// client-facing email follows the client's language while the admin
+// notification summary follows the injected admin locale.
+func TestRouterAdminLocaleVsClientLanguage(t *testing.T) {
+	sender := &fakeSender{}
+	email := deliver.NewEmail(sender, "billing@me.com", "")
+	notifier := &fakeNotifier{}
+	updater := &fakeUpdater{}
+	adminLang := i18n.En // admin configured the app in English...
+	r := deliver.NewRouter(updater, notifier, func() i18n.Lang { return adminLang }, email, nil, nil)
+
+	// ...but this client speaks Portuguese.
+	client := model.Client{Name: "Acme", Language: "pt-BR", Email: strp("a@acme.com")}
+	inv := model.Invoice{ID: "inv-9", Number: 7, Status: "draft"}
+
+	_, err := r.SendInvoice(context.Background(), client, inv, []byte("pdf"), "email")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := sender.calls[0].subject; got != "Fatura #000007" {
+		t.Errorf("client-facing subject = %q, want pt-BR %q", got, "Fatura #000007")
+	}
+	assertContains(t, sender.calls[0].body, "Olá Acme")
+
+	if len(notifier.texts) != 1 {
+		t.Fatalf("notify texts = %v, want one summary", notifier.texts)
+	}
+	summary := notifier.texts[0]
+	assertContains(t, summary, "Invoice #000007 sent to Acme")
+	if strings.Contains(summary, "Fatura") || strings.Contains(summary, "enviada") {
+		t.Errorf("admin summary leaked pt-BR wording: %q", summary)
+	}
+
+	// A reminder behaves the same way.
+	sender.calls = nil
+	notifier.texts = nil
+	if _, err := r.SendReminder(context.Background(), client, inv, "email"); err != nil {
+		t.Fatal(err)
+	}
+	assertContains(t, sender.calls[0].subject, "Lembrete de vencimento - Fatura #000007")
+	assertContains(t, notifier.texts[0], "Reminder of invoice #000007 sent to Acme")
+}
+
+// TestRouterAdminLocaleDefaultsToPtBR covers the defensive fallbacks of an
+// unset or broken locale resolver.
+func TestRouterAdminLocaleDefaultsToPtBR(t *testing.T) {
+	for name, resolver := range map[string]deliver.AdminLocaleFunc{
+		"nil":     nil,
+		"garbage": func() i18n.Lang { return i18n.Lang("xx") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			updater := &fakeUpdater{}
+			notifier := &fakeNotifier{}
+			r := deliver.NewRouter(updater, notifier, resolver, &fakeChannel{name: "email"}, nil, nil)
+
+			client := routerClient(true, false, false)
+			if _, err := r.SendInvoice(context.Background(), client, routerInvoice(), []byte("pdf"), "email"); err != nil {
+				t.Fatal(err)
+			}
+			assertContains(t, notifier.texts[0], "Fatura #000001 enviada para Acme via email")
+		})
 	}
 }

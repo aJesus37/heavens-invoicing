@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/schedule"
@@ -23,6 +24,20 @@ func settingOr(ctx context.Context, s *repo.SettingsRepo, key string) string {
 		return ""
 	}
 	return strings.TrimSpace(value)
+}
+
+// settingsLocale resolves the stored locale at call time so a change on
+// the settings page reaches admin notifications and bot replies without a
+// restart. Unset or unknown values keep pt-BR. The unnamed func type is
+// assignable to both deliver.AdminLocaleFunc and telegram.LocaleFunc.
+func settingsLocale(s *repo.SettingsRepo) func() i18n.Lang {
+	return func() i18n.Lang {
+		v, err := s.Get(context.Background(), repo.SettingLocale)
+		if err != nil {
+			return i18n.PtBR
+		}
+		return i18n.Resolve(v)
+	}
 }
 
 // setupSenderInfo loads the business identity printed on invoice PDFs.
@@ -133,7 +148,7 @@ func startAdminBot(ctx context.Context, c *telegram.Client, adminChatID string, 
 	case adminChatID == "":
 		log.Println("admin bot disabled: no admin telegram chat configured")
 	default:
-		bot := telegram.NewAdminBot(c, adminChatID, repos.Invoices, repos.Clients)
+		bot := telegram.NewAdminBot(c, adminChatID, repos.Invoices, repos.Clients, settingsLocale(repos.Settings))
 		go runAdminBot(ctx, bot)
 	}
 }

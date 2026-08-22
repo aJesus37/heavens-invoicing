@@ -77,9 +77,9 @@ func TestTFormatting(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	for s, want := range map[string]Lang{
-		"en":       En,
-		"pt-BR":    PtBR,
-		"  en  ":   En,
+		"en":      En,
+		"pt-BR":   PtBR,
+		"  en  ":  En,
 		"\tpt-BR": PtBR,
 	} {
 		got, ok := Parse(s)

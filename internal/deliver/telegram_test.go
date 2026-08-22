@@ -106,6 +106,65 @@ func TestTelegramSendReminder(t *testing.T) {
 	}
 }
 
+// TestTelegramLocalizesPerClientLanguage pins caption/reminder wording to
+// the client's stored language; unknown values keep pt-BR.
+func TestTelegramLocalizesPerClientLanguage(t *testing.T) {
+	tests := []struct {
+		name           string
+		language       string
+		captionMarker  string
+		reminderMarker string
+		notWant        []string
+	}{
+		{
+			name:           "pt-BR client",
+			language:       "pt-BR",
+			captionMarker:  "Fatura #000001 para Acme Ltda",
+			reminderMarker: "Lembrete: a fatura #000001, com vencimento em 05/09/2026, ainda está pendente.",
+			notWant:        []string{"Invoice", "Reminder"},
+		},
+		{
+			name:           "en client",
+			language:       "en",
+			captionMarker:  "Invoice #000001 for Acme Ltda",
+			reminderMarker: "Reminder: invoice #000001, due on 05/09/2026, is still pending.",
+			notWant:        []string{"Fatura", "Lembrete"},
+		},
+		{
+			name:           "unknown language falls back to pt-BR",
+			language:       "",
+			captionMarker:  "Fatura #000001 para Acme Ltda",
+			reminderMarker: "Lembrete: a fatura #000001, com vencimento em 05/09/2026, ainda está pendente.",
+			notWant:        []string{"Invoice"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			api := &fakeTelegram{}
+			d := deliver.NewTelegram(api, "")
+			client := tgClient(strPtr("12345"))
+			client.Language = tt.language
+
+			if err := d.SendInvoice(ctx, client, testInvoice(), []byte("pdf")); err != nil {
+				t.Fatal(err)
+			}
+			assertContains(t, api.calls[0].caption, tt.captionMarker)
+
+			if err := d.SendReminder(ctx, client, testInvoice()); err != nil {
+				t.Fatal(err)
+			}
+			assertContains(t, api.calls[1].text, tt.reminderMarker)
+
+			for _, m := range tt.notWant {
+				if strings.Contains(api.calls[0].caption+api.calls[1].text, m) {
+					t.Errorf("language %q: message unexpectedly contains %q", tt.language, m)
+				}
+			}
+		})
+	}
+}
+
 func TestTelegramPIXKeyPrecedence(t *testing.T) {
 	invoicePix := "pix@invoice.com"
 	fallbackPix := "pix@fallback.com"

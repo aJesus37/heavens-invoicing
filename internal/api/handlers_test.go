@@ -73,7 +73,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		tg:       &countingChannel{name: "telegram"},
 		notifier: &recordingNotifier{},
 	}
-	router := deliver.NewRouter(env.repos.Invoices, env.notifier, env.email, env.wa, env.tg)
+	router := deliver.NewRouter(env.repos.Invoices, env.notifier, nil, env.email, env.wa, env.tg)
 	env.handler = api.New(env.repos, router, pdf.SenderInfo{Name: "Teste Ltda", Address: "Rua Um, 1", PIXKey: "pix@teste"})
 	return env
 }
