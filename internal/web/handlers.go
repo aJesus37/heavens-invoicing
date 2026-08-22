@@ -19,12 +19,13 @@ import (
 
 // Handlers owns every page route plus the small htmx fragment endpoints.
 type Handlers struct {
-	repos  *repo.Repos
-	router *deliver.Router
-	wa     *whatsapp.Session
-	sender pdf.SenderInfo
-	render *renderer
-	static http.Handler
+	repos   *repo.Repos
+	router  *deliver.Router
+	wa      *whatsapp.Session
+	sender  pdf.SenderInfo
+	pairing *pairingManager
+	render  *renderer
+	static  http.Handler
 }
 
 // New parses the embedded templates eagerly so a broken template fails at
@@ -39,12 +40,13 @@ func New(r *repo.Repos, router *deliver.Router, wa *whatsapp.Session, sender pdf
 		return nil, err
 	}
 	h := &Handlers{
-		repos:  r,
-		router: router,
-		wa:     wa,
-		sender: sender,
-		render: rnd,
-		static: http.FileServerFS(staticFS),
+		repos:   r,
+		router:  router,
+		wa:      wa,
+		sender:  sender,
+		pairing: newPairing(wa),
+		render:  rnd,
+		static:  http.FileServerFS(staticFS),
 	}
 	return h, nil
 }
@@ -78,6 +80,12 @@ func (h *Handlers) Mux() *http.ServeMux {
 	mux.HandleFunc("GET /recorrentes/novo", h.newRecurringForm)
 	mux.HandleFunc("POST /recorrentes/novo", h.createRecurring)
 	mux.HandleFunc("POST /recorrentes/{id}/excluir", h.deleteRecurring)
+
+	mux.HandleFunc("GET /configuracoes", h.settingsForm)
+	mux.HandleFunc("POST /configuracoes", h.saveSettings)
+	mux.HandleFunc("GET /configuracoes/whatsapp/status", h.whatsappStatusFragment)
+	mux.HandleFunc("POST /configuracoes/whatsapp/conectar", h.whatsappConnect)
+	mux.HandleFunc("GET /configuracoes/whatsapp/qr.png", h.whatsappQRPNG)
 
 	return mux
 }

@@ -1,0 +1,60 @@
+{{define "content"}}
+<h1>Configurações</h1>
+
+{{if .Saved}}<div class="ok-banner">Configurações salvas.</div>{{end}}
+{{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
+
+<form method="post" action="/configuracoes" class="stack">
+<div class="panel">
+<h2 style="margin-top:0;">Negócio</h2>
+<p class="hint">Nome, endereço e PIX padrão aparecem no cabeçalho dos PDFs gerados.</p>
+{{range .Fields}}
+{{if or (eq .Key "business_name") (eq .Key "business_address")}}
+{{template "settingsField" .}}
+{{end}}
+{{end}}
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0;">Pagamento</h2>
+{{range .Fields}}
+{{if eq .Key "default_pix_key"}}{{template "settingsField" .}}{{end}}
+{{end}}
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0;">E-mail (SMTP)</h2>
+{{range .Fields}}
+{{if hasPrefix .Key "smtp_"}}{{template "settingsField" .}}{{end}}
+{{end}}
+<p class="hint">Alterações de SMTP entram em vigor após reiniciar o aplicativo.</p>
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0;">Telegram</h2>
+{{range .Fields}}
+{{if hasPrefix .Key "telegram_"}}{{template "settingsField" .}}{{end}}
+{{end}}
+<p class="hint">Alterações de Telegram entram em vigor após reiniciar o aplicativo.</p>
+</div>
+
+<button type="submit">Salvar configurações</button>
+</form>
+
+<div class="panel">
+<h2 style="margin-top:0;">WhatsApp</h2>
+<div id="wa-status"
+     hx-get="/configuracoes/whatsapp/status"
+     hx-trigger="load, every 5s"
+     hx-swap="innerHTML">
+<p class="muted">Carregando estado do WhatsApp…</p>
+</div>
+</div>
+{{end}}
+
+{{define "settingsField"}}
+<label for="{{.Key}}">{{.Label}}</label>
+<input type="{{if eq .Kind "password"}}password{{else}}text{{end}}"
+       id="{{.Key}}" name="{{.Key}}" value="{{.Value}}"
+       {{if and .KeepHint (not .Value)}}placeholder="(deixe vazio para manter o valor salvo)"{{end}}>
+{{end}}

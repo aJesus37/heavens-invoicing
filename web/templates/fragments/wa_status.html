@@ -1,0 +1,18 @@
+{{if not .Enabled}}
+<p class="muted">WhatsApp indisponível nesta instância.</p>
+{{else if eq .State "connected"}}
+<p style="color:#1a7f37;">✅ Conectado</p>
+{{else if eq .State "pairing"}}
+<img class="qr-img" src="{{.QRPath}}" alt="QR Code de pareamento" width="256" height="256">
+<p>Aguardando pareamento… <span class="muted">(escaneie com o WhatsApp em Aparelhos conectados)</span></p>
+{{else if eq .State "failed"}}
+<p style="color:#c0392b;">❌ Falha no pareamento: {{.ErrMsg}}</p>
+<button hx-post="/configuracoes/whatsapp/conectar"
+        hx-target="#wa-status"
+        hx-swap="innerHTML">Tentar novamente</button>
+{{else}}
+<p>Desconectado.</p>
+<button hx-post="/configuracoes/whatsapp/conectar"
+        hx-target="#wa-status"
+        hx-swap="innerHTML">Gerar QR Code de pareamento</button>
+{{end}}

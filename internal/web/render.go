@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/pdf"
@@ -36,6 +37,7 @@ var funcs = template.FuncMap{
 	"dtbr":        func(t time.Time) string { return t.Format("02/01/2006") },
 	"dtin":        func(t time.Time) string { return t.Format("2006-01-02") },
 	"statusLabel": statusLabel,
+	"hasPrefix":   strings.HasPrefix,
 }
 
 // pageData is the payload handed to layout.html; Data carries the

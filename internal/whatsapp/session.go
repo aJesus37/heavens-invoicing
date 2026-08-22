@@ -61,6 +61,13 @@ func (s *Session) IsConnected() bool {
 	return s.client.IsConnected()
 }
 
+// IsPaired reports whether the store holds a linked device (i.e. a QR
+// pairing completed at some point). Paired and connected are independent:
+// after a network drop IsPaired stays true while IsConnected goes false.
+func (s *Session) IsPaired() bool {
+	return s.client.Store.ID != nil
+}
+
 // QRChannel exposes the pairing QR code stream. It only works before the
 // first successful Connect of an unpaired device.
 func (s *Session) QRChannel(ctx context.Context) (<-chan whatsmeow.QRChannelItem, error) {

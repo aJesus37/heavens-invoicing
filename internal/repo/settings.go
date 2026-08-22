@@ -7,6 +7,9 @@ import (
 )
 
 const (
+	SettingBusinessName    = "business_name"
+	SettingBusinessAddress = "business_address"
+
 	SettingSMTPHost = "smtp_host"
 	SettingSMTPPort = "smtp_port"
 	SettingSMTPUser = "smtp_user"

@@ -25,6 +25,15 @@ func settingOr(ctx context.Context, s *repo.SettingsRepo, key string) string {
 	return strings.TrimSpace(value)
 }
 
+// setupSenderInfo loads the business identity printed on invoice PDFs.
+func setupSenderInfo(ctx context.Context, s *repo.SettingsRepo) pdf.SenderInfo {
+	return pdf.SenderInfo{
+		Name:    settingOr(ctx, s, repo.SettingBusinessName),
+		Address: settingOr(ctx, s, repo.SettingBusinessAddress),
+		PIXKey:  settingOr(ctx, s, repo.SettingDefaultPIXKey),
+	}
+}
+
 // setupWhatsApp prepares the session store and attempts an initial
 // connect. Both steps are non-fatal: WhatsApp is optional at runtime, and
 // sends through an unlinked session fail with a clear error instead.

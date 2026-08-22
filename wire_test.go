@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/db"
+	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/telegram"
 )
 
@@ -113,5 +116,35 @@ func TestRunAdminBotRestartsAndResetsBackoff(t *testing.T) {
 		if limit := api.hold + adminBotMaxBackoff + 3*adminBotInitialBackoff; gap >= limit {
 			t.Fatalf("attempt %d gap %s >= %s: restart cadence out of control", i, gap, limit)
 		}
+	}
+}
+
+func TestSetupSenderInfoReadsBusinessSettings(t *testing.T) {
+	conn, err := db.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	repos := repo.New(conn)
+	ctx := context.Background()
+
+	si := setupSenderInfo(ctx, repos.Settings)
+	if si.Name != "" || si.Address != "" || si.PIXKey != "" {
+		t.Fatalf("empty settings should yield empty SenderInfo, got %+v", si)
+	}
+
+	mustSet := func(key, value string) {
+		t.Helper()
+		if err := repos.Settings.Set(ctx, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustSet(repo.SettingBusinessName, "Minha Empresa")
+	mustSet(repo.SettingBusinessAddress, "Rua Um, 123")
+	mustSet(repo.SettingDefaultPIXKey, "chave@pix")
+
+	si = setupSenderInfo(ctx, repos.Settings)
+	if si.Name != "Minha Empresa" || si.Address != "Rua Um, 123" || si.PIXKey != "chave@pix" {
+		t.Fatalf("SenderInfo not wired from settings: %+v", si)
 	}
 }

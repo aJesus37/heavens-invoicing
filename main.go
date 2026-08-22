@@ -13,7 +13,6 @@ import (
 	"github.com/jesus/invoice-app/internal/api"
 	"github.com/jesus/invoice-app/internal/db"
 	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/server"
 	"github.com/jesus/invoice-app/internal/web"
@@ -51,15 +50,13 @@ func main() {
 	startAdminBot(ctx, tgClient, adminChatID, repos)
 
 	pixFallback := settingOr(ctx, repos.Settings, repo.SettingDefaultPIXKey)
+	senderInfo := setupSenderInfo(ctx, repos.Settings)
 	router := deliver.NewRouter(repos.Invoices,
 		tgNotifier(tgClient, adminChatID),
 		setupEmail(ctx, repos.Settings, pixFallback),
 		setupWhatsAppDeliverer(waSession, pixFallback),
 		setupTelegramDeliverer(tgClient, pixFallback),
 	)
-
-	// Business name/address have no settings keys yet; the PIX fallback does.
-	senderInfo := pdf.SenderInfo{PIXKey: pixFallback}
 
 	startScheduler(ctx, repos, router, tgNotifier(tgClient, adminChatID), senderInfo)
 
