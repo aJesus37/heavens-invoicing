@@ -137,6 +137,49 @@ func TestRecurringNotFound(t *testing.T) {
 	}
 }
 
+func TestRecurringActiveToggles(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+	client, tpl := recurringSeed(t, r)
+
+	s := &model.RecurringSchedule{
+		ClientID:          client.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		NextSendDate:      mustDate("2026-09-01"),
+		DeliveryMethod:    "email",
+	}
+	if err := r.Recurring.Create(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Active {
+		t.Fatal("new schedule should default to active")
+	}
+
+	// Pause and persist.
+	s.Active = false
+	if err := r.Recurring.Update(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.Recurring.Get(ctx, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Active {
+		t.Fatal("update did not persist paused state")
+	}
+
+	// Resume and persist.
+	got.Active = true
+	if err := r.Recurring.Update(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	got2, _ := r.Recurring.Get(ctx, s.ID)
+	if !got2.Active {
+		t.Fatal("update did not persist resumed state")
+	}
+}
+
 func TestRecurringListOrderedByNextSendDate(t *testing.T) {
 	r := openTestDB(t)
 	ctx := context.Background()

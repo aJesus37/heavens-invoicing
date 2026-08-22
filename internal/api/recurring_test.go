@@ -112,3 +112,44 @@ func TestRecurringValidation(t *testing.T) {
 
 	assertStatus(t, do(t, h, "DELETE", "/api/recurring/nope", nil), 404, "delete unknown schedule")
 }
+
+func TestRecurringUpdateActive(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	client := mustCreateClient(t, env.repos, "Acme")
+	tpl := mustCreateInvoiceViaAPI(t, h, client.ID)
+
+	rec := do(t, h, "POST", "/api/recurring", map[string]any{
+		"client_id":           client.ID,
+		"invoice_template_id": tpl.ID,
+		"frequency":           "monthly",
+		"delivery_method":     "email",
+		"next_send_date":      "2026-09-01",
+	})
+	assertStatus(t, rec, 201, "create recurring")
+	created := decode[recurringWire](t, rec)
+	if !created.Active {
+		t.Fatal("new schedule should default to active")
+	}
+
+	// Pause it.
+	paused := do(t, h, "PUT", "/api/recurring/"+created.ID, map[string]any{"active": false})
+	assertStatus(t, paused, 200, "pause recurring")
+	if got := decode[recurringWire](t, paused); got.Active {
+		t.Fatalf("pause did not flip active: %+v", got)
+	}
+
+	// Resume it.
+	resumed := do(t, h, "PUT", "/api/recurring/"+created.ID, map[string]any{"active": true})
+	assertStatus(t, resumed, 200, "resume recurring")
+	if got := decode[recurringWire](t, resumed); !got.Active {
+		t.Fatalf("resume did not flip active: %+v", got)
+	}
+
+	// Invalid id -> 404.
+	assertStatus(t, do(t, h, "PUT", "/api/recurring/nope", map[string]any{"active": false}), 404, "update unknown schedule")
+
+	// Malformed JSON -> 400.
+	assertStatus(t, doRaw(t, h, "PUT", "/api/recurring/"+created.ID, "{not json"), 400, "update bad json")
+}

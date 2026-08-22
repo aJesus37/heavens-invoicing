@@ -290,3 +290,33 @@ func (a *api) loadInvoice(w http.ResponseWriter, r *http.Request) (*model.Invoic
 	}
 	return inv, true
 }
+
+// cancelInvoice cancels a draft, sent or overdue invoice. Paid invoices are
+// rejected with 409 because cancelling would undo a completed payment; the
+// status flip is delegated to the repo's permissive UpdateStatus.
+func (a *api) cancelInvoice(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+	inv, err := a.repos.Invoices.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	if inv.Status == "paid" {
+		writeError(w, http.StatusConflict, "invoice is paid and cannot be cancelled")
+		return
+	}
+	if err := a.repos.Invoices.UpdateStatus(r.Context(), id, "cancelled"); err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	updated, err := a.repos.Invoices.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toInvoiceResponse(updated))
+}

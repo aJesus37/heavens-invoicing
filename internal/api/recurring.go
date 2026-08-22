@@ -141,3 +141,35 @@ func (a *api) deleteRecurring(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// recurringActivePayload is the body of PUT /api/recurring/{id}; it carries
+// only the field the pause toggle may change.
+type recurringActivePayload struct {
+	Active bool `json:"active"`
+}
+
+// updateRecurring toggles a schedule's active flag. It loads the existing
+// row (404 when missing) and persists only the active flag, leaving every
+// other column untouched.
+func (a *api) updateRecurring(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+	var payload recurringActivePayload
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	s, err := a.repos.Recurring.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	s.Active = payload.Active
+	if err := a.repos.Recurring.Update(r.Context(), s); err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toRecurringResponse(s))
+}

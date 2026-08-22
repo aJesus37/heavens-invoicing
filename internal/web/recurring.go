@@ -206,3 +206,22 @@ func (h *Handlers) deleteRecurring(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
 }
+
+// toggleRecurring flips a schedule's active flag (pause/resume) and returns
+// to the list. The csrf_token field is validated by the auth gate, so this
+// is only reachable from an authenticated, same-origin form post.
+func (h *Handlers) toggleRecurring(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	s, err := h.repos.Recurring.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	s.Active = !s.Active
+	if err := h.repos.Recurring.Update(r.Context(), s); err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
+}

@@ -84,11 +84,13 @@ func (h *Handlers) Mux() *http.ServeMux {
 	mux.HandleFunc("GET /faturas/{id}", h.showInvoice)
 	mux.HandleFunc("POST /faturas/{id}/enviar", h.sendInvoiceAction)
 	mux.HandleFunc("POST /faturas/{id}/marcar-paga", h.markInvoicePaidAction)
+	mux.HandleFunc("POST /faturas/{id}/cancelar", h.cancelInvoiceAction)
 
 	mux.HandleFunc("GET /recorrentes", h.listRecurring)
 	mux.HandleFunc("GET /recorrentes/novo", h.newRecurringForm)
 	mux.HandleFunc("POST /recorrentes/novo", h.createRecurring)
 	mux.HandleFunc("POST /recorrentes/{id}/excluir", h.deleteRecurring)
+	mux.HandleFunc("POST /recorrentes/{id}/alternar", h.toggleRecurring)
 
 	mux.HandleFunc("GET /configuracoes", h.settingsForm)
 	mux.HandleFunc("POST /configuracoes", h.saveSettings)

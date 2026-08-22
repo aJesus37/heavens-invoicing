@@ -28,6 +28,7 @@ type InvoiceStore interface {
 	Get(ctx context.Context, id string) (*model.Invoice, error)
 	ListByStatus(ctx context.Context, statuses ...string) ([]*model.Invoice, error)
 	UpdateStatus(ctx context.Context, id, status string) error
+	Delete(ctx context.Context, id string) error
 }
 
 // ClientStore loads the schedule/invoice clients.
@@ -130,10 +131,7 @@ func (s *Scheduler) lang() i18n.Lang {
 	if s.locale == nil {
 		return i18n.PtBR
 	}
-	if l, ok := i18n.Parse(string(s.locale())); ok {
-		return l
-	}
-	return i18n.PtBR
+	return i18n.ResolveSettings(string(s.locale()))
 }
 
 // Tick runs one full pass: fires due recurring schedules, then walks the
@@ -193,6 +191,12 @@ func (s *Scheduler) fireDueSchedules(ctx context.Context, today time.Time) error
 	}
 	var errs []error
 	for _, sched := range schedules {
+		// Hard skip: paused schedules must generate nothing and notify
+		// nothing. ListActive already filters them out, but the guard here
+		// keeps the rule local to the fire loop so it can't drift.
+		if !sched.Active {
+			continue
+		}
 		if localDay(sched.NextSendDate, today.Location()).After(today) {
 			continue // not due yet
 		}
@@ -233,12 +237,18 @@ func (s *Scheduler) fireSchedule(ctx context.Context, sched *model.RecurringSche
 
 	results, err := s.router.SendInvoice(ctx, *client, *inv, buf.Bytes(), sched.DeliveryMethod)
 	if err != nil {
-		// Either routing failed outright or delivery succeeded but marking
-		// the invoice "sent" did not persist; either way do not advance —
-		// the Router already told the admin what happened per channel.
+		// Routing refused outright (e.g. the invoice is already paid) or
+		// delivery succeeded but the "sent" flip did not persist: the clone
+		// is an orphan we must not leave behind, so roll it back and do not
+		// advance. The Router already told the admin what happened.
+		s.rollbackClone(ctx, inv.ID)
 		return fmt.Errorf("send invoice #%06d via %s: %w", inv.Number, sched.DeliveryMethod, err)
 	}
 	if !anyChannelOK(results) {
+		// Delivery failed on every channel: dropping the clone here is what
+		// stops a permanently-failing schedule from accumulating one orphan
+		// draft per day. No advance, so it retries tomorrow with a fresh try.
+		s.rollbackClone(ctx, inv.ID)
 		return fmt.Errorf("invoice #%06d via %q failed on every channel (%s)",
 			inv.Number, sched.DeliveryMethod, summarize(s.lang(), results))
 	}
@@ -410,6 +420,15 @@ func (s *Scheduler) forget(invoiceID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.pending, invoiceID)
+}
+
+// rollbackClone removes the draft a failed fire cloned from the template, so
+// a delivery failure leaves no orphan invoice behind. A delete error is
+// logged but does not mask the original failure.
+func (s *Scheduler) rollbackClone(ctx context.Context, id string) {
+	if err := s.invoices.Delete(ctx, id); err != nil {
+		log.Printf("scheduler: rollback orphan draft %s: %v", id, err)
+	}
 }
 
 // notifyAdmin is best-effort: notification problems are logged and dropped

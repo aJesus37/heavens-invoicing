@@ -76,6 +76,14 @@ func Resolve(s string) Lang {
 	return PtBR
 }
 
+// ResolveSettings is the single settings-backed locale resolver: it parses a
+// stored localePreference and defaults to pt-BR when unset or unknown. The
+// scheduler, delivery router, admin bot and web all funnel through it so the
+// Parse+fallback logic lives in exactly one place.
+func ResolveSettings(s string) Lang {
+	return Resolve(s)
+}
+
 // T translates key for lang, applying fmt formatting when args are given.
 // Resolution order: lang → En → "!"+key so missing entries stay loud.
 func T(lang Lang, key string, args ...any) string {

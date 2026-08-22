@@ -124,6 +124,24 @@ func (r *InvoiceRepo) GetByNumber(ctx context.Context, number int64) (*model.Inv
 	return inv, nil
 }
 
+// Delete removes an invoice and its items. It is used to roll back the
+// draft a failed recurring fire created so a permanently-failing schedule
+// never accumulates orphan drafts day after day.
+func (r *InvoiceRepo) Delete(ctx context.Context, id string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM invoices WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete invoice: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete invoice: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // UpdateStatus sets the status directly; transitions are any->any by design.
 // The draft->sent item requirement is enforced at Create because items are
 // immutable post-create.

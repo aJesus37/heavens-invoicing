@@ -1,0 +1,9 @@
+-- R2 Task 4: recurring pause support.
+--
+-- The `active` column on recurring_schedules was introduced together with
+-- the scheduler's ListActive reader in migration 001, so the data model
+-- predates this feature. This migration marks the pause-feature schema
+-- version and documents the contract: `active = 0` schedules are skipped by
+-- the scheduler (no invoice generation, no notifications) and toggled
+-- through PUT /api/recurring/{id}. Existing deployments already carry the
+-- column (INTEGER NOT NULL DEFAULT 1), so no DDL is required here.

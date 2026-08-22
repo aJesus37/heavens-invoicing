@@ -39,9 +39,11 @@ func New(r *repo.Repos, router *deliver.Router, senderInfo pdf.SenderInfo) http.
 	mux.HandleFunc("GET /api/invoices/{id}/pdf", a.invoicePDF)
 	mux.HandleFunc("POST /api/invoices/{id}/send", a.sendInvoice)
 	mux.HandleFunc("POST /api/invoices/{id}/mark-paid", a.markInvoicePaid)
+	mux.HandleFunc("POST /api/invoices/{id}/cancel", a.cancelInvoice)
 
 	mux.HandleFunc("GET /api/recurring", a.listRecurring)
 	mux.HandleFunc("POST /api/recurring", a.createRecurring)
+	mux.HandleFunc("PUT /api/recurring/{id}", a.updateRecurring)
 	mux.HandleFunc("DELETE /api/recurring/{id}", a.deleteRecurring)
 
 	return mux

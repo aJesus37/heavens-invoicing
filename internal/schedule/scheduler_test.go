@@ -143,6 +143,18 @@ func (f *fakeInvoices) ListByStatus(_ context.Context, statuses ...string) ([]*m
 	return out, nil
 }
 
+// Delete rolls back a clone (used to assert the scheduler doesn't leave
+// orphan drafts behind on a failed fire).
+func (f *fakeInvoices) Delete(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.byID[id]; !ok {
+		return repo.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
+
 type fakeClients struct {
 	mu      sync.Mutex
 	byID    map[string]*model.Client
@@ -385,6 +397,7 @@ func TestTickFiresDueMonthlySchedule(t *testing.T) {
 		Frequency:         "monthly",
 		NextSendDate:      day("2026-03-30"), // due yesterday
 		DeliveryMethod:    "email",
+		Active:            true,
 	}}
 
 	err := h.sched.Tick(context.Background())
@@ -433,6 +446,7 @@ func TestTickLeavesFutureScheduleUntouched(t *testing.T) {
 		Frequency:         "weekly",
 		NextSendDate:      day("2026-04-01"), // tomorrow
 		DeliveryMethod:    "email",
+		Active:            true,
 	}}
 
 	if err := h.sched.Tick(context.Background()); err != nil {
@@ -459,6 +473,7 @@ func TestTickFiresUTCStoredScheduleOnLocalDay(t *testing.T) {
 		// Exactly what time.Parse("2006-01-02") stores for 2026-04-01.
 		NextSendDate:   time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
 		DeliveryMethod: "email",
+		Active:         true,
 	}}
 
 	if err := h.sched.Tick(context.Background()); err != nil {
@@ -503,6 +518,36 @@ func TestTickInactiveSchedulesIgnored(t *testing.T) {
 	}
 }
 
+// TestTickSkipsInactiveScheduleInLoop exercises the in-loop active guard:
+// ListActive may hand back a paused row, and the loop must still refuse to
+// generate anything or notify for it.
+func TestTickSkipsInactiveScheduleInLoop(t *testing.T) {
+	h := newHarness(day(testNow))
+	tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+	h.recur.active = []*model.RecurringSchedule{{
+		ID:                "paused",
+		ClientID:          testClient.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		NextSendDate:      day("2026-03-01"), // overdue, would fire if active
+		DeliveryMethod:    "email",
+		Active:            false,
+	}}
+
+	if err := h.sched.Tick(context.Background()); err != nil {
+		t.Fatalf("tick returned error: %v", err)
+	}
+	if len(h.invoices.clones) != 0 {
+		t.Fatalf("paused schedule fired: %+v", h.invoices.clones)
+	}
+	if len(h.sender.snapshot()) != 0 {
+		t.Fatalf("paused schedule sent: %+v", h.sender.snapshot())
+	}
+	if len(h.notifier.snapshot()) != 0 {
+		t.Fatalf("paused schedule notified: %+v", h.notifier.snapshot())
+	}
+}
+
 func TestTickTotalDeliveryFailureKeepsScheduleAndNotifiesAdmin(t *testing.T) {
 	h := newHarness(day(testNow))
 	tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
@@ -513,6 +558,7 @@ func TestTickTotalDeliveryFailureKeepsScheduleAndNotifiesAdmin(t *testing.T) {
 		Frequency:         "monthly",
 		NextSendDate:      day("2026-03-01"),
 		DeliveryMethod:    "email",
+		Active:            true,
 	}}
 	h.sender.failMethods["email"] = true
 
@@ -524,8 +570,12 @@ func TestTickTotalDeliveryFailureKeepsScheduleAndNotifiesAdmin(t *testing.T) {
 	if len(h.invoices.clones) != 1 {
 		t.Fatalf("clone should have been attempted, got %d", len(h.invoices.clones))
 	}
-	if clone := h.invoices.clones[0]; clone.Status != "draft" {
-		t.Fatalf("clone status = %q, want draft (nothing sent)", clone.Status)
+	// A total delivery failure must NOT leave the clone behind as an orphan
+	// draft — it is rolled back so a permanently-failing schedule never
+	// accumulates one draft per day.
+	clone := h.invoices.clones[0]
+	if _, err := h.invoices.Get(context.Background(), clone.ID); !errors.Is(err, repo.ErrNotFound) {
+		t.Fatalf("failed clone should be rolled back, Get = %v", err)
 	}
 	if len(h.recur.updateCalls) != 0 {
 		t.Fatalf("failed schedule must not advance, got updates %+v", h.recur.updateCalls)
@@ -542,8 +592,8 @@ func TestTickIsolatesPerScheduleFailures(t *testing.T) {
 	tplA := h.invoices.addTemplate(testTemplate(testClient.ID))
 	tplB := h.invoices.addTemplate(testTemplate(bob.ID))
 	h.recur.active = []*model.RecurringSchedule{
-		{ID: "sched-bad", ClientID: bob.ID, InvoiceTemplateID: tplB.ID, Frequency: "monthly", NextSendDate: day("2026-03-01"), DeliveryMethod: "telegram"},
-		{ID: "sched-good", ClientID: testClient.ID, InvoiceTemplateID: tplA.ID, Frequency: "monthly", NextSendDate: day("2026-03-02"), DeliveryMethod: "email"},
+		{ID: "sched-bad", ClientID: bob.ID, InvoiceTemplateID: tplB.ID, Frequency: "monthly", NextSendDate: day("2026-03-01"), DeliveryMethod: "telegram", Active: true},
+		{ID: "sched-good", ClientID: testClient.ID, InvoiceTemplateID: tplA.ID, Frequency: "monthly", NextSendDate: day("2026-03-02"), DeliveryMethod: "email", Active: true},
 	}
 	h.sender.failMethods["telegram"] = true
 
@@ -580,6 +630,7 @@ func TestTickAttemptsEachScheduleOncePerDay(t *testing.T) {
 		Frequency:         "weekly",
 		NextSendDate:      day("2026-03-01"),
 		DeliveryMethod:    "email",
+		Active:            true,
 	}}
 	h.sender.failMethods["email"] = true
 
@@ -600,6 +651,7 @@ func TestTickAttemptsEachScheduleOncePerDay(t *testing.T) {
 		Frequency:         "weekly",
 		NextSendDate:      day("2026-03-01"),
 		DeliveryMethod:    "email",
+		Active:            true,
 	}}
 	h2.sender.failMethods["email"] = true
 	_ = h2.sched.Tick(context.Background())
@@ -802,18 +854,19 @@ func TestSchedulerNotificationsFollowInjectedLocale(t *testing.T) {
 	t.Run("recurring failure notice in en", func(t *testing.T) {
 		h := newHarness(day(testNow))
 		h.sched.locale = func() i18n.Lang { return i18n.En }
-		tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
-		h.recur.active = []*model.RecurringSchedule{{
-			ID:                "sched-1",
-			ClientID:          testClient.ID,
-			InvoiceTemplateID: tpl.ID,
-			Frequency:         "monthly",
-			NextSendDate:      day("2026-03-01"),
-			DeliveryMethod:    "email",
-		}}
-		h.sender.failMethods["email"] = true
+			tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+			h.recur.active = []*model.RecurringSchedule{{
+				ID:                "sched-1",
+				ClientID:          testClient.ID,
+				InvoiceTemplateID: tpl.ID,
+				Frequency:         "monthly",
+				NextSendDate:      day("2026-03-01"),
+				DeliveryMethod:    "email",
+				Active:            true,
+			}}
+			h.sender.failMethods["email"] = true
 
-		_ = h.sched.Tick(ctx)
+			_ = h.sched.Tick(ctx)
 
 		texts := h.notifier.snapshot()
 		if len(texts) != 1 {
@@ -843,6 +896,7 @@ func TestSchedulerNotificationsFollowInjectedLocale(t *testing.T) {
 				Frequency:         "weekly",
 				NextSendDate:      day(testNow),
 				DeliveryMethod:    deliver.MethodAll,
+				Active:            true,
 			}}
 			h.sender.failMethods[deliver.MethodAll] = true // zero attempted channels
 			return h.sched.Tick(ctx)

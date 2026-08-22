@@ -19,13 +19,19 @@
 <td>{{dtbr .Next}}</td>
 <td>{{if .Last}}{{dtbr .Last}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td>{{.MethodLabel}}</td>
-<td>{{if .Active}}{{T "common.yes"}}{{else}}{{T "common.no"}}{{end}}</td>
-<td>
-<form method="post" action="/recorrentes/{{.ID}}/excluir">
-{{template "csrfField" .}}
-<button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
-</form>
-</td>
+		<td>{{if .Active}}{{T "recurring.active"}}{{else}}{{T "recurring.paused"}}{{end}}</td>
+		<td>
+		<form method="post" action="/recorrentes/{{.ID}}/alternar">
+		{{template "csrfField" .}}
+		<button type="submit" class="btn-secondary">{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}</button>
+		</form>
+		</td>
+		<td>
+		<form method="post" action="/recorrentes/{{.ID}}/excluir">
+		{{template "csrfField" .}}
+		<button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
+		</form>
+		</td>
 </tr>
 {{end}}
 {{else}}

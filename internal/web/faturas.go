@@ -279,6 +279,7 @@ type faturaDetailData struct {
 	Client       *model.Client
 	EffectivePix *string
 	SendMethods  []selectOption
+	CanCancel    bool
 }
 
 func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
@@ -307,6 +308,7 @@ func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
 			Client:       client,
 			EffectivePix: pdf.PixKeyFor(*inv, h.sender),
 			SendMethods:  methods,
+			CanCancel:    cancellable(inv.Status),
 		})
 }
 
@@ -406,6 +408,40 @@ func (h *Handlers) markInvoicePaidAction(w http.ResponseWriter, r *http.Request)
 	lang := h.lang(r)
 	id := r.PathValue("id")
 	if err := h.repos.Invoices.UpdateStatus(r.Context(), id, "paid"); err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	http.Redirect(w, r, "/faturas/"+id, http.StatusSeeOther)
+}
+
+// cancellable reports whether an invoice in the given status may be cancelled
+// (draft, sent or overdue — never paid or already cancelled).
+func cancellable(status string) bool {
+	switch status {
+	case "draft", "sent", "overdue":
+		return true
+	default:
+		return false
+	}
+}
+
+// cancelInvoiceAction cancels a draft/sent/overdue invoice. Paid invoices
+// are refused with a localized 409 (the UI hides the action for them, but
+// the guard protects direct posts); the csrf_token field is validated by the
+// auth gate before this runs.
+func (h *Handlers) cancelInvoiceAction(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	inv, err := h.repos.Invoices.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	if !cancellable(inv.Status) {
+		http.Error(w, i18n.T(lang, "invoices.cancel_forbidden"), http.StatusConflict)
+		return
+	}
+	if err := h.repos.Invoices.UpdateStatus(r.Context(), id, "cancelled"); err != nil {
 		writeRepoErr(w, lang, err)
 		return
 	}

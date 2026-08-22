@@ -18,6 +18,7 @@ type invoiceRow struct {
 	Due        time.Time
 	Total      int64
 	Status     string
+	CanCancel  bool
 }
 
 type recurringRow struct {
@@ -61,6 +62,7 @@ func buildInvoiceRows(ctx context.Context, h *Handlers, invoices []*model.Invoic
 			Due:        inv.DueDate,
 			Total:      inv.Total,
 			Status:     inv.Status,
+			CanCancel:  cancellable(inv.Status),
 		})
 	}
 	return rows, nil
