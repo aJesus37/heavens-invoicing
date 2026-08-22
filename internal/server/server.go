@@ -9,6 +9,8 @@ type Config struct {
 	// API, when non-nil, is mounted at /api/ (the JSON API mux built by
 	// the api package; its routes carry their own full /api/... paths).
 	API http.Handler
+	// Web, when non-nil, is mounted at / and serves the html/template UI.
+	Web http.Handler
 }
 
 type Server struct {
@@ -24,6 +26,9 @@ func (s *Server) Handler() http.Handler {
 	})
 	if s.cfg.API != nil {
 		mux.Handle("/api/", s.cfg.API)
+	}
+	if s.cfg.Web != nil {
+		mux.Handle("/", s.cfg.Web)
 	}
 	return mux
 }

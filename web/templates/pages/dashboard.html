@@ -1,0 +1,75 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<h2>Faturas pendentes</h2>
+<div class="panel">
+<table>
+<thead>
+<tr><th>Nº</th><th>Cliente</th><th>Vencimento</th><th class="num">Total</th><th>Status</th></tr>
+</thead>
+<tbody>
+{{if .Pending}}
+{{range .Pending}}
+<tr>
+<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td>{{.ClientName}}</td>
+<td>{{dtbr .Due}}</td>
+<td class="num">{{brl .Total}}</td>
+<td>{{template "statusBadge" .}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="5" class="muted">Nenhuma fatura pendente.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Recorrentes nos próximos 7 dias</h2>
+<div class="panel">
+<table>
+<thead>
+<tr><th>Cliente</th><th>Modelo</th><th>Frequência</th><th>Próximo envio</th><th>Método</th></tr>
+</thead>
+<tbody>
+{{if .Upcoming}}
+{{range .Upcoming}}
+<tr>
+<td>{{.ClientName}}</td>
+<td><a href="/faturas/{{.TemplateID}}">#{{printf "%06d" .TemplateNumber}}</a></td>
+<td>{{.FrequencyLabel}}</td>
+<td>{{dtbr .Next}}</td>
+<td>{{.MethodLabel}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="5" class="muted">Nenhum envio recorrente nos próximos 7 dias.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Faturas recentes</h2>
+<div class="panel">
+<table>
+<thead>
+<tr><th>Nº</th><th>Cliente</th><th>Emissão</th><th class="num">Total</th><th>Status</th></tr>
+</thead>
+<tbody>
+{{if .Recent}}
+{{range .Recent}}
+<tr>
+<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td>{{.ClientName}}</td>
+<td>{{dtbr .Issue}}</td>
+<td class="num">{{brl .Total}}</td>
+<td>{{template "statusBadge" .}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="5" class="muted">Nenhuma fatura criada ainda.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}

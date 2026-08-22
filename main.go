@@ -16,6 +16,7 @@ import (
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/server"
+	"github.com/jesus/invoice-app/internal/web"
 )
 
 const (
@@ -62,7 +63,12 @@ func main() {
 
 	startScheduler(ctx, repos, router, tgNotifier(tgClient, adminChatID), senderInfo)
 
-	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo)})
+	webHandlers, err := web.New(repos, router, waSession, senderInfo)
+	if err != nil {
+		log.Fatalf("web ui: %v", err)
+	}
+
+	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo), Web: webHandlers.Mux()})
 	httpSrv := &http.Server{
 		Addr:              addr,
 		Handler:           srv.Handler(),

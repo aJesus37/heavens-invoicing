@@ -1,0 +1,28 @@
+{{define "content"}}
+<div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
+<h1 style="margin:0;">Clientes</h1>
+<a class="btn" href="/clientes/novo">Novo cliente</a>
+</div>
+
+<div class="panel">
+<table>
+<thead>
+<tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Cidade/Endereço</th></tr>
+</thead>
+<tbody>
+{{if .}}
+{{range .}}
+<tr>
+<td><a href="/clientes/{{.ID}}">{{.Name}}</a></td>
+<td>{{with .Email}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{with .Phone}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td>{{with .Address}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="4" class="muted">Nenhum cliente cadastrado.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}

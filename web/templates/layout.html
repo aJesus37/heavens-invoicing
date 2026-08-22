@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · Faturas</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+<nav aria-label="Navegação principal">
+<a href="/">Dashboard</a>
+<a href="/clientes">Clientes</a>
+<a href="/produtos">Produtos</a>
+<a href="/faturas">Faturas</a>
+<a href="/recorrentes">Recorrentes</a>
+<a href="/configuracoes">Configurações</a>
+</nav>
+</header>
+<main>
+{{block "content" .Data}}<p>Nada para exibir.</p>{{end}}
+</main>
+</body>
+</html>
