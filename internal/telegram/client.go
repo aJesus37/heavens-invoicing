@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strings"
 )
 
 const defaultBaseURL = "https://api.telegram.org"
@@ -69,17 +70,17 @@ func (c *Client) post(ctx context.Context, method string, fill func(*multipart.W
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint(method), &body)
 	if err != nil {
-		return fmt.Errorf("telegram %s: %w", method, err)
+		return fmt.Errorf("telegram %s: %w", method, redactToken(err, c.token))
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("telegram %s: %w", method, err)
+		return fmt.Errorf("telegram %s: %w", method, redactToken(err, c.token))
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return fmt.Errorf("telegram %s: reading response: %w", method, err)
 	}
@@ -113,6 +114,31 @@ func (c *Client) post(ctx context.Context, method string, fill func(*multipart.W
 		return fmt.Errorf("telegram %s failed: %s", method, detail)
 	}
 	return nil
+}
+
+const maxResponseBytes = 2048
+
+// tokenRedacted hides the bot token embedded in transport error messages
+// (*url.Error quotes the full request URL, which contains /bot<token>/).
+type tokenRedacted struct {
+	err   error
+	token string
+}
+
+func (e *tokenRedacted) Error() string {
+	if e.token == "" {
+		return e.err.Error()
+	}
+	return strings.ReplaceAll(e.err.Error(), e.token, "***")
+}
+
+func (e *tokenRedacted) Unwrap() error { return e.err }
+
+func redactToken(err error, token string) error {
+	if err == nil || token == "" {
+		return err
+	}
+	return &tokenRedacted{err: err, token: token}
 }
 
 func rawSnippet(b []byte) string {

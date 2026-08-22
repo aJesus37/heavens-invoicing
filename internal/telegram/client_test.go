@@ -2,9 +2,11 @@ package telegram_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -12,6 +14,8 @@ import (
 )
 
 const testToken = "123456:ABC-TOKEN"
+
+var errDial = errors.New("dial tcp: connection refused")
 
 type recordedRequest struct {
 	path        string
@@ -32,7 +36,8 @@ func readMultipart(t *testing.T, r *http.Request) recordedRequest {
 	}
 	mr, err := r.MultipartReader()
 	if err != nil {
-		t.Fatalf("multipart body expected: %v", err)
+		t.Errorf("multipart body expected: %v", err)
+		return rec
 	}
 	for {
 		part, err := mr.NextPart()
@@ -40,24 +45,24 @@ func readMultipart(t *testing.T, r *http.Request) recordedRequest {
 			break
 		}
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("reading multipart: %v", err)
+			break
+		}
+		data, err := io.ReadAll(part)
+		if err != nil {
+			t.Errorf("reading part %q: %v", part.FormName(), err)
+			continue
 		}
 		if part.FileName() == "" {
-			data, err := io.ReadAll(part)
-			if err != nil {
-				t.Fatal(err)
-			}
 			rec.fields[part.FormName()] = string(data)
 			continue
 		}
 		if part.FormName() != "document" {
-			t.Fatalf("unexpected file part %q", part.FormName())
+			t.Errorf("unexpected file part %q", part.FormName())
+			continue
 		}
 		rec.fileName = part.FileName()
-		rec.fileContent, err = io.ReadAll(part)
-		if err != nil {
-			t.Fatal(err)
-		}
+		rec.fileContent = data
 	}
 	return rec
 }
@@ -190,6 +195,34 @@ func TestEmptyBaseURLDefaultsToTelegramAPI(t *testing.T) {
 	want := "https://api.telegram.org/bot" + testToken + "/sendMessage"
 	if tr.lastURL != want {
 		t.Fatalf("url: want %q, got %q", want, tr.lastURL)
+	}
+}
+
+// failingTransport simulates a transport-level failure whose message quotes
+// the full request URL, like *url.Error does.
+type failingTransport struct{ cause error }
+
+func (tr failingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, &url.Error{Op: "Post", URL: req.URL.String(), Err: tr.cause}
+}
+
+func TestTransportErrorRedactsToken(t *testing.T) {
+	client := telegram.NewClient(&http.Client{Transport: failingTransport{cause: errDial}}, "", testToken)
+
+	err := client.SendMessage(context.Background(), "42", "hi")
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	if strings.Contains(err.Error(), testToken) {
+		t.Fatalf("token leaked in error: %v", err)
+	}
+	for _, want := range []string{"***", "/bot", "sendMessage"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+	if !errors.Is(err, errDial) {
+		t.Fatalf("errors.Is should reach the wrapped cause, got %v", err)
 	}
 }
 

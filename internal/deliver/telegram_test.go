@@ -42,14 +42,14 @@ func tgClient(chatID *string) model.Client {
 }
 
 func TestTelegramName(t *testing.T) {
-	if got := deliver.NewTelegram(&fakeTelegram{}).Name(); got != "telegram" {
+	if got := deliver.NewTelegram(&fakeTelegram{}, "").Name(); got != "telegram" {
 		t.Fatalf("want %q, got %q", "telegram", got)
 	}
 }
 
 func TestTelegramSendInvoice(t *testing.T) {
 	api := &fakeTelegram{}
-	d := deliver.NewTelegram(api)
+	d := deliver.NewTelegram(api, "pix@fallback.com")
 	chatID := "12345"
 	pdf := []byte("%PDF-fake")
 
@@ -81,7 +81,7 @@ func TestTelegramSendInvoice(t *testing.T) {
 
 func TestTelegramSendReminder(t *testing.T) {
 	api := &fakeTelegram{}
-	d := deliver.NewTelegram(api)
+	d := deliver.NewTelegram(api, "")
 	chatID := "12345"
 
 	if err := d.SendReminder(context.Background(), tgClient(&chatID), testInvoice()); err != nil {
@@ -106,6 +106,76 @@ func TestTelegramSendReminder(t *testing.T) {
 	}
 }
 
+func TestTelegramPIXKeyPrecedence(t *testing.T) {
+	invoicePix := "pix@invoice.com"
+	fallbackPix := "pix@fallback.com"
+
+	invoiceWithKey := func() model.Invoice {
+		inv := testInvoice()
+		inv.PIXKey = strPtr(invoicePix)
+		return inv
+	}
+
+	t.Run("caption uses invoice key over fallback", func(t *testing.T) {
+		api := &fakeTelegram{}
+		d := deliver.NewTelegram(api, fallbackPix)
+		chatID := "12345"
+
+		if err := d.SendInvoice(context.Background(), tgClient(&chatID), invoiceWithKey(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[0].caption, "Chave PIX: "+invoicePix)
+		if strings.Contains(api.calls[0].caption, fallbackPix) {
+			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[0].caption)
+		}
+	})
+
+	t.Run("caption falls back when invoice has none", func(t *testing.T) {
+		api := &fakeTelegram{}
+		d := deliver.NewTelegram(api, fallbackPix)
+		chatID := "12345"
+
+		if err := d.SendInvoice(context.Background(), tgClient(&chatID), testInvoice(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[0].caption, "Chave PIX: "+fallbackPix)
+	})
+
+	t.Run("reminder uses invoice key over fallback", func(t *testing.T) {
+		api := &fakeTelegram{}
+		d := deliver.NewTelegram(api, fallbackPix)
+		chatID := "12345"
+
+		if err := d.SendReminder(context.Background(), tgClient(&chatID), invoiceWithKey()); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[0].text, "Chave PIX: "+invoicePix)
+		if strings.Contains(api.calls[0].text, fallbackPix) {
+			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[0].text)
+		}
+	})
+
+	t.Run("omitted entirely when no key anywhere", func(t *testing.T) {
+		api := &fakeTelegram{}
+		d := deliver.NewTelegram(api, "")
+		chatID := "12345"
+
+		if err := d.SendInvoice(context.Background(), tgClient(&chatID), testInvoice(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(api.calls[0].caption, "Chave PIX") {
+			t.Fatalf("empty key must omit the line, got %q", api.calls[0].caption)
+		}
+
+		if err := d.SendReminder(context.Background(), tgClient(&chatID), testInvoice()); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(api.calls[1].text, "Chave PIX") {
+			t.Fatalf("empty key must omit the line, got %q", api.calls[1].text)
+		}
+	})
+}
+
 func TestTelegramMissingChatID(t *testing.T) {
 	ctx := context.Background()
 	pdf := []byte("pdf")
@@ -120,7 +190,7 @@ func TestTelegramMissingChatID(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			api := &fakeTelegram{}
-			d := deliver.NewTelegram(api)
+			d := deliver.NewTelegram(api, "")
 			client := tgClient(tc.chatID)
 
 			if err := d.SendInvoice(ctx, client, testInvoice(), pdf); err == nil {
@@ -136,10 +206,23 @@ func TestTelegramMissingChatID(t *testing.T) {
 	}
 }
 
+func TestTelegramChatIDTrimmed(t *testing.T) {
+	api := &fakeTelegram{}
+	d := deliver.NewTelegram(api, "")
+	chatID := " 12345 "
+
+	if err := d.SendReminder(context.Background(), tgClient(&chatID), testInvoice()); err != nil {
+		t.Fatal(err)
+	}
+	if got := api.calls[0].chatID; got != "12345" {
+		t.Fatalf("chat ID: want trimmed %q, got %q", "12345", got)
+	}
+}
+
 func TestTelegramAPIErrorPropagates(t *testing.T) {
 	wantErr := errors.New("telegram down")
 	api := &fakeTelegram{err: wantErr}
-	d := deliver.NewTelegram(api)
+	d := deliver.NewTelegram(api, "")
 	chatID := "12345"
 
 	if err := d.SendInvoice(context.Background(), tgClient(&chatID), testInvoice(), []byte("pdf")); !errors.Is(err, wantErr) {
