@@ -40,6 +40,7 @@
 <div class="panel">
 <h2 style="margin-top:0;">Ações</h2>
 
+{{if ne .Inv.Status "paid"}}
 <label for="send-method">Enviar por</label>
 <div class="actions">
 <select id="send-method" name="method" style="max-width:12rem;">
@@ -52,10 +53,15 @@
         hx-target="#send-resultados"
         hx-swap="innerHTML"
         {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>Enviar fatura</button>
+{{if ne .Inv.Status "cancelled"}}
 <form method="post" action="/faturas/{{.Inv.ID}}/marcar-paga" style="display:inline;">
 <button type="submit">Marcar paga</button>
 </form>
+{{end}}
 </div>
 <div id="send-resultados" aria-live="polite"></div>
+{{else}}
+<p class="muted">Faturas pagas não podem ser reenviadas.</p>
+{{end}}
 </div>
 {{end}}

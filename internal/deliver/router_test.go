@@ -293,6 +293,25 @@ func TestRouterNilDelivererReportsNotConfigured(t *testing.T) {
 	}
 }
 
+func TestRouterSendInvoiceRejectsPaidInvoice(t *testing.T) {
+	f := newRouter()
+	inv := routerInvoice()
+	inv.Status = "paid"
+	results, err := f.router.SendInvoice(context.Background(), routerClient(true, true, true), inv, []byte("pdf"), "all")
+	if err == nil || !strings.Contains(err.Error(), "já está paga") {
+		t.Fatalf("want paid-invoice rejection, got results=%+v err=%v", results, err)
+	}
+	if f.email.invoiceCalls+f.wa.invoiceCalls+f.tg.invoiceCalls != 0 {
+		t.Fatal("paid invoice must not reach any channel")
+	}
+	if len(f.updater.calls) != 0 {
+		t.Fatalf("paid invoice must not be marked sent, got %v", f.updater.calls)
+	}
+	if len(f.notifier.texts) != 0 {
+		t.Fatalf("paid rejection must not notify, got %v", f.notifier.texts)
+	}
+}
+
 func TestRouterSendReminderNoStatusUpdate(t *testing.T) {
 	f := newRouter()
 	results, err := f.router.SendReminder(context.Background(), routerClient(true, false, true), routerInvoice(), "all")

@@ -121,6 +121,7 @@ func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, _ := formToClient(r)
+	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
 		http.Error(w, "o nome é obrigatório", http.StatusBadRequest)
 		return

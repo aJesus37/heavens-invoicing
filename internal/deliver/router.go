@@ -65,7 +65,13 @@ func NewRouter(invoices InvoiceStatusUpdater, notifier Notifier, email, whatsapp
 
 // SendInvoice delivers the rendered invoice PDF through the requested
 // method and marks it "sent" when at least one attempted channel succeeds.
+// Paid invoices are rejected up front: resending must never downgrade
+// their status back to "sent". Drafts are accepted (the scheduler sends
+// freshly cloned drafts).
 func (r *Router) SendInvoice(ctx context.Context, c model.Client, inv model.Invoice, pdf []byte, method string) ([]ChannelResult, error) {
+	if inv.Status == "paid" {
+		return nil, fmt.Errorf("fatura já está paga")
+	}
 	targets, err := r.targets(c, method)
 	if err != nil {
 		return nil, fmt.Errorf("send invoice #%06d: %w", inv.Number, err)

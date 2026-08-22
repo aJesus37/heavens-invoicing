@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -118,7 +119,7 @@ func TestClientCreateFlowEndToEnd(t *testing.T) {
 }
 
 func TestClientUpdateFlow(t *testing.T) {
-	ts, _ := newTestEnv(t)
+	ts, repos := newTestEnv(t)
 
 	form := url.Values{"name": {"Beta"}}
 	resp, _ := postForm(t, ts, "/clientes/novo", form)
@@ -134,6 +135,19 @@ func TestClientUpdateFlow(t *testing.T) {
 	_, body = get(t, ts, "/clientes/"+id)
 	if !strings.Contains(body, "Beta SA") || !strings.Contains(body, "atualizado") {
 		t.Fatal("update did not persist")
+	}
+
+	// Updates trim the name just like creation does.
+	respTrim, _ := postForm(t, ts, "/clientes/"+id, url.Values{"name": {"  Gamma  "}})
+	if respTrim.StatusCode != http.StatusSeeOther {
+		t.Fatalf("trim update: got %d want 303", respTrim.StatusCode)
+	}
+	got, err := repos.Clients.Get(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "Gamma" {
+		t.Fatalf("update did not trim name, got %q", got.Name)
 	}
 }
 

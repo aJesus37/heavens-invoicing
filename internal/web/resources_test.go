@@ -150,21 +150,9 @@ func TestInvoiceCreateFlowEndToEnd(t *testing.T) {
 	}
 }
 
-func TestInvoiceMarkPaidAndSendFragment(t *testing.T) {
+func TestInvoiceMarkPaidHidesActions(t *testing.T) {
 	ts, repos := newTestEnv(t)
-
-	// The router only attempts channels the client has contacts for, so
-	// seed all three to exercise every result row.
-	c, err := repos.Clients.Create(context.Background(), &model.Client{
-		Name:           "Pagador",
-		Email:          strPtr("pagador@x.com"),
-		Phone:          strPtr("+5511988887777"),
-		TelegramChatID: strPtr("4242"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	clientID := c.ID
+	clientID := seedClient(t, repos, "Pagador")
 
 	ctx := context.Background()
 	inv := &model.Invoice{
@@ -180,6 +168,14 @@ func TestInvoiceMarkPaidAndSendFragment(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A draft offers both actions.
+	_, body := get(t, ts, "/faturas/"+inv.ID)
+	for _, marker := range []string{"Marcar paga", "Enviar fatura"} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("draft detail missing action %q", marker)
+		}
+	}
+
 	resp, _ := postForm(t, ts, "/faturas/"+inv.ID+"/marcar-paga", url.Values{})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("mark paid: got %d want 303", resp.StatusCode)
@@ -187,6 +183,83 @@ func TestInvoiceMarkPaidAndSendFragment(t *testing.T) {
 	got, err := repos.Invoices.Get(ctx, inv.ID)
 	if err != nil || got.Status != "paid" {
 		t.Fatalf("mark paid did not persist (status=%q err=%v)", got.Status, err)
+	}
+
+	// Paid invoices must not offer either action.
+	_, body = get(t, ts, "/faturas/"+inv.ID)
+	if strings.Contains(body, "Marcar paga") || strings.Contains(body, "Enviar fatura") {
+		t.Error("paid invoice still offers mark-paid/send actions")
+	}
+	if !strings.Contains(body, "paga") {
+		t.Error("paid invoice detail missing status badge")
+	}
+
+	// Resending a paid invoice is rejected with a clear reason instead of
+	// downgrading it to "sent".
+	respSend, bodySend := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"email"}})
+	if respSend.StatusCode != http.StatusConflict {
+		t.Fatalf("send paid invoice: got %d want 409", respSend.StatusCode)
+	}
+	if !strings.Contains(bodySend, "já está paga") {
+		t.Errorf("send paid invoice response missing reason: %s", bodySend)
+	}
+	got, err = repos.Invoices.Get(ctx, inv.ID)
+	if err != nil || got.Status != "paid" {
+		t.Fatalf("paid status was changed by resend (status=%q err=%v)", got.Status, err)
+	}
+}
+
+func TestInvoiceCancelledKeepsSendOnly(t *testing.T) {
+	ts, repos := newTestEnv(t)
+	clientID := seedClient(t, repos, "Devedor")
+
+	inv := &model.Invoice{
+		ClientID:  clientID,
+		Status:    "draft",
+		IssueDate: dateUTC(2026, 8, 1),
+		DueDate:   dateUTC(2026, 8, 20),
+		Items:     []*model.InvoiceItem{{Description: "Serviço", Quantity: 1, UnitPrice: 1000}},
+	}
+	if err := repos.Invoices.Create(context.Background(), inv); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Invoices.UpdateStatus(context.Background(), inv.ID, "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, body := get(t, ts, "/faturas/"+inv.ID)
+	if strings.Contains(body, "Marcar paga") {
+		t.Error("cancelled invoice still offers mark-paid")
+	}
+	if !strings.Contains(body, "Enviar fatura") {
+		t.Error("cancelled invoice lost the send action")
+	}
+}
+
+func TestInvoiceSendFragmentOnDraft(t *testing.T) {
+	ts, repos := newTestEnv(t)
+
+	// The router only attempts channels the client has contacts for, so
+	// seed all three to exercise every result row.
+	c, err := repos.Clients.Create(context.Background(), &model.Client{
+		Name:           "Pagador",
+		Email:          strPtr("pagador@x.com"),
+		Phone:          strPtr("+5511988887777"),
+		TelegramChatID: strPtr("4242"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inv := &model.Invoice{
+		ClientID:  c.ID,
+		Status:    "draft",
+		IssueDate: dateUTC(2026, 8, 1),
+		DueDate:   dateUTC(2026, 8, 20),
+		Items:     []*model.InvoiceItem{{Description: "Serviço", Quantity: 1, UnitPrice: 5000}},
+	}
+	if err := repos.Invoices.Create(context.Background(), inv); err != nil {
+		t.Fatal(err)
 	}
 
 	// Send endpoint returns an HTML fragment; with every channel unconfigured

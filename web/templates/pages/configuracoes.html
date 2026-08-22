@@ -54,7 +54,11 @@
 
 {{define "settingsField"}}
 <label for="{{.Key}}">{{.Label}}</label>
+{{if eq .Kind "textarea"}}
+<textarea id="{{.Key}}" name="{{.Key}}" rows="3">{{.Value}}</textarea>
+{{else}}
 <input type="{{if eq .Kind "password"}}password{{else}}text{{end}}"
        id="{{.Key}}" name="{{.Key}}" value="{{.Value}}"
        {{if and .KeepHint (not .Value)}}placeholder="(deixe vazio para manter o valor salvo)"{{end}}>
+{{end}}
 {{end}}

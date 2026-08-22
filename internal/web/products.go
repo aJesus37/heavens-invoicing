@@ -108,10 +108,14 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(f.Name) == "" {
-		http.Error(w, "o nome é obrigatório", http.StatusBadRequest)
+		f.Error = "O nome é obrigatório."
+		f.Action = "/produtos/" + id + "/editar"
+		f.Editing = true
+		f.ID = id
+		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", "Editar produto", &f)
 		return
 	}
-	p.Name = f.Name
+	p.Name = strings.TrimSpace(f.Name)
 	p.Description = f.Description
 	p.UnitPrice = cents
 	p.Active = f.Active

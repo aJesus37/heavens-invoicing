@@ -339,6 +339,12 @@ func (h *Handlers) sendInvoiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results, err := h.router.SendInvoice(ctx, *client, *inv, buf.Bytes(), method)
+	if err != nil && len(results) == 0 {
+		// Routing refused up front (e.g. the invoice is already paid);
+		// surface the reason instead of a fake record-update failure.
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
 	out := make([]channelOut, 0, len(results)+1)
 	sent := false
 	for _, res := range results {

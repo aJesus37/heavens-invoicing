@@ -54,6 +54,12 @@ func (a *api) sendInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results, err := a.router.SendInvoice(r.Context(), *client, *inv, buf.Bytes(), body.Method)
+	if err != nil && len(results) == 0 {
+		// Routing refused up front (e.g. the invoice is already paid);
+		// that is a client-visible rejection, not an internal error.
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
 
 	resp := toSendResponse(results)
 	if err != nil {
