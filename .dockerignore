@@ -1,0 +1,18 @@
+# Build context exclusions
+bin/
+data/
+*.db
+*.db-*
+*.db-wal
+*.db-shm
+
+# VCS and local tooling
+.git/
+.gitignore
+
+# Docs/tooling are not needed inside the build
+README.md
+Taskfile.yml
+docker-compose.yml
+Dockerfile
+.dockerignore

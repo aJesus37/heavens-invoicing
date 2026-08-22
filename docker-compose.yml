@@ -1,0 +1,25 @@
+services:
+  invoice-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: invoice-app:local
+    container_name: invoice-app
+    ports:
+      - "${PORT:-8010}:8010"
+    environment:
+      # PORT is read by the app (defaults to 8080 if unset; 8010 in prod).
+      PORT: "${PORT:-8010}"
+      # DATA_DIR is reserved for future use; the app currently stores data at
+      # ./data relative to the working directory (the container runs from "/",
+      # so it resolves to /data where the volume below is mounted).
+      DATA_DIR: "/data"
+    volumes:
+      - invoice-app-data:/data
+    restart: unless-stopped
+    # The scratch image has no probe binary, so an in-container healthcheck is
+    # omitted. The app exposes GET /healthz for external monitoring (e.g. a
+    # reverse proxy or host-side probe).
+
+volumes:
+  invoice-app-data:
