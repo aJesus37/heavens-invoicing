@@ -30,7 +30,8 @@ func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {
-	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(h.lang(r), "products.new"), h.lang(r), &productForm{Action: "/produtos/novo"})
+	lang := h.lang(r)
+	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(lang, "products.new"), lang, &productForm{Action: "/produtos/novo"})
 }
 
 func formToProduct(r *http.Request) (*model.Product, productForm) {

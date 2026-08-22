@@ -300,7 +300,7 @@ func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.render.renderPage(w, http.StatusOK, "fatura_detalhe.html",
-		fmt.Sprintf(i18n.T(lang, "detail.title"), inv.Number),
+		i18n.T(lang, "detail.title", inv.Number),
 		lang,
 		faturaDetailData{
 			Inv:          inv,

@@ -50,7 +50,9 @@ func settingsFields() []settingsField {
 	}
 }
 
-func (h *Handlers) loadSettings(w http.ResponseWriter, r *http.Request) *configuracoesData {
+// loadSettings assembles the settings page data. lang is resolved once by
+// the caller and reused for the whole request.
+func (h *Handlers) loadSettings(lang i18n.Lang, r *http.Request) *configuracoesData {
 	fields := settingsFields()
 	for i := range fields {
 		value, err := h.repos.Settings.Get(r.Context(), fields[i].Key)
@@ -63,7 +65,7 @@ func (h *Handlers) loadSettings(w http.ResponseWriter, r *http.Request) *configu
 		fields[i].Value = value
 	}
 	return &configuracoesData{
-		Locale:    h.lang(r),
+		Locale:    lang,
 		Fields:    fields,
 		Saved:     r.URL.Query().Get("saved") == "1",
 		WAEnabled: h.wa != nil,
@@ -72,7 +74,7 @@ func (h *Handlers) loadSettings(w http.ResponseWriter, r *http.Request) *configu
 
 func (h *Handlers) settingsForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	h.render.renderPage(w, http.StatusOK, "configuracoes.html", i18n.T(lang, "settings.title"), lang, h.loadSettings(w, r))
+	h.render.renderPage(w, http.StatusOK, "configuracoes.html", i18n.T(lang, "settings.title"), lang, h.loadSettings(lang, r))
 }
 
 func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {

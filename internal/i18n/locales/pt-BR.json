@@ -111,6 +111,7 @@
   "hint.price_format": "Use vírgula como separador decimal, ex.: 1500,00.",
   "hint.recurring_list": "A cada disparo o agendador clona a fatura modelo como novo rascunho e envia pelo método escolhido.",
   "hint.recurring_template": "A cada disparo o agendador clona este rascunho com nova numeração e datas.",
+  "invoices.empty": "Nenhuma fatura encontrada.",
   "invoices.new_title": "Nova fatura",
   "invoices.title": "Faturas",
   "items.title": "Itens",
@@ -174,14 +175,13 @@
   "status.sent": "enviada",
   "wa.connected": "✅ Conectado",
   "wa.disconnected": "Desconectado.",
+  "wa.err_connection": "conexão: %s",
+  "wa.err_expired": "pareamento expirou",
   "wa.failed": "❌ Falha no pareamento: %s",
   "wa.generate_qr": "Gerar QR Code de pareamento",
   "wa.pairing_hint": "(escaneie com o WhatsApp em Aparelhos conectados)",
   "wa.pairing_wait": "Aguardando pareamento…",
   "wa.qr_alt": "QR Code de pareamento",
   "wa.retry": "Tentar novamente",
-  "wa.unavailable": "WhatsApp indisponível nesta instância.",
-  "invoices.empty": "Nenhuma fatura encontrada.",
-  "wa.err_connection": "conexão: %s",
-  "wa.err_expired": "pareamento expirou"
+  "wa.unavailable": "WhatsApp indisponível nesta instância."
 }

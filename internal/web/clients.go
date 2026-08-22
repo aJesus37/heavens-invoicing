@@ -62,7 +62,8 @@ func (h *Handlers) listClients(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) newClientForm(w http.ResponseWriter, r *http.Request) {
-	h.render.renderPage(w, http.StatusOK, "cliente_novo.html", i18n.T(h.lang(r), "clients.new"), h.lang(r), clientForm{})
+	lang := h.lang(r)
+	h.render.renderPage(w, http.StatusOK, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, clientForm{})
 }
 
 func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
