@@ -26,6 +26,13 @@
 <label for="pix_key">{{T "label.pix_key"}}</label>
 <input type="text" id="pix_key" name="pix_key" value="{{.PIXKey}}">
 </div>
+<div>
+<label for="language">{{T "field.locale"}}</label>
+<select id="language" name="language">
+<option value="pt-BR" {{if ne .Language "en"}}selected{{end}}>{{T "locale.pt-BR"}}</option>
+<option value="en" {{if eq .Language "en"}}selected{{end}}>{{T "locale.en"}}</option>
+</select>
+</div>
 <div class="wide">
 <label for="address">{{T "label.address"}}</label>
 <textarea id="address" name="address">{{.Address}}</textarea>

@@ -65,6 +65,7 @@
   "error.item_qty": "item %s: quantity must be a number ≥ 1",
   "error.items_required": "Enter at least one item.",
   "error.issue_date_invalid": "Invalid issue date.",
+  "error.language_invalid": "Invalid language.",
   "error.method_invalid": "Invalid delivery method.",
   "error.money_empty": "empty value",
   "error.money_invalid": "invalid value %q",

@@ -27,6 +27,7 @@ type clientForm struct {
 	PIXKey         string
 	Address        string
 	Notes          string
+	Language       string
 	Error          string
 }
 
@@ -38,6 +39,8 @@ func formToClient(r *http.Request) (*model.Client, clientForm) {
 		TelegramChatID: r.FormValue("telegram_chat_id"),
 		PIXKey:         r.FormValue("pix_key"),
 		Address:        r.FormValue("address"),
+		Notes:          r.FormValue("notes"),
+		Language:       r.FormValue("language"),
 	}
 	c := &model.Client{
 		Name:           f.Name,
@@ -46,7 +49,8 @@ func formToClient(r *http.Request) (*model.Client, clientForm) {
 		TelegramChatID: strPtr(f.TelegramChatID),
 		PIXKey:         strPtr(f.PIXKey),
 		Address:        f.Address,
-		Notes:          r.FormValue("notes"),
+		Notes:          f.Notes,
+		Language:       f.Language,
 	}
 	return c, f
 }
@@ -78,7 +82,14 @@ func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
 		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
 		return
 	}
+	clientLang, ok := i18n.Normalize(c.Language)
+	if !ok {
+		f.Error = i18n.T(lang, "error.language_invalid")
+		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
+		return
+	}
 	c.Name = strings.TrimSpace(c.Name)
+	c.Language = string(clientLang)
 	created, err := h.repos.Clients.Create(r.Context(), c)
 	if err != nil {
 		writeRepoErr(w, lang, err)
@@ -132,6 +143,12 @@ func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, i18n.T(lang, "error.name_required"), http.StatusBadRequest)
 		return
 	}
+	clientLang, ok := i18n.Normalize(c.Language)
+	if !ok {
+		http.Error(w, i18n.T(lang, "error.language_invalid"), http.StatusBadRequest)
+		return
+	}
+	c.Language = string(clientLang)
 	c.ID = id
 	if err := h.repos.Clients.Update(r.Context(), c); err != nil {
 		writeRepoErr(w, lang, err)

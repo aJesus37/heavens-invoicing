@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -26,6 +27,12 @@ func (a *api) createClient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	lang, ok := i18n.Normalize(c.Language)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "language must be one of: pt-BR, en")
+		return
+	}
+	c.Language = string(lang)
 	// Caller-supplied identity and timestamps are never honored.
 	c.ID = ""
 	c.CreatedAt = time.Time{}
@@ -57,6 +64,12 @@ func (a *api) updateClient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	lang, ok := i18n.Normalize(c.Language)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "language must be one of: pt-BR, en")
+		return
+	}
+	c.Language = string(lang)
 	if err := a.repos.Clients.Update(r.Context(), &c); err != nil {
 		writeRepoErr(w, err)
 		return

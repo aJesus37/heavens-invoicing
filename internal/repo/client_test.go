@@ -27,7 +27,7 @@ func TestClientCRUD(t *testing.T) {
 	r := openTestDB(t)
 	ctx := context.Background()
 
-	c := &model.Client{Name: "Acme", Email: strPtr("a@acme.com"), Phone: strPtr("+5511999999999"), PIXKey: strPtr("a@acme.com")}
+	c := &model.Client{Name: "Acme", Email: strPtr("a@acme.com"), Phone: strPtr("+5511999999999"), PIXKey: strPtr("a@acme.com"), Language: "en"}
 	created, err := r.Clients.Create(ctx, c)
 	if err != nil {
 		t.Fatal(err)
@@ -40,8 +40,12 @@ func TestClientCRUD(t *testing.T) {
 	if err != nil || got.Name != "Acme" {
 		t.Fatalf("get: %v %+v", err, got)
 	}
+	if got.Language != "en" {
+		t.Fatalf("language round-trip: got %q, want en", got.Language)
+	}
 
 	got.Name = "Acme SA"
+	got.Language = "pt-BR"
 	if err := r.Clients.Update(ctx, got); err != nil {
 		t.Fatal(err)
 	}
@@ -49,10 +53,16 @@ func TestClientCRUD(t *testing.T) {
 	if got2.Name != "Acme SA" {
 		t.Fatal("update failed")
 	}
+	if got2.Language != "pt-BR" {
+		t.Fatalf("language update failed: got %q, want pt-BR", got2.Language)
+	}
 
 	list, err := r.Clients.List(ctx)
 	if err != nil || len(list) != 1 {
 		t.Fatalf("list: %v %d", err, len(list))
+	}
+	if list[0].Language != "pt-BR" {
+		t.Fatalf("list language: got %q, want pt-BR", list[0].Language)
 	}
 
 	if err := r.Clients.Delete(ctx, created.ID); err != nil {

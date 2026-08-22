@@ -55,6 +55,27 @@ func Parse(s string) (Lang, bool) {
 	}
 }
 
+// Normalize validates a client-supplied language preference for storage.
+// A blank value defaults to pt-BR so legacy callers keep the historical
+// behavior; any other unsupported value fails.
+func Normalize(s string) (Lang, bool) {
+	if strings.TrimSpace(s) == "" {
+		return PtBR, true
+	}
+	return Parse(s)
+}
+
+// Resolve maps a stored language value onto a supported Lang, falling
+// back to pt-BR when it is empty or unknown. Read paths (PDF rendering,
+// delivery messages) use it so legacy rows keep rendering in Portuguese;
+// write paths validate with Parse/Normalize instead of coercing.
+func Resolve(s string) Lang {
+	if l, ok := Parse(s); ok {
+		return l
+	}
+	return PtBR
+}
+
 // T translates key for lang, applying fmt formatting when args are given.
 // Resolution order: lang → En → "!"+key so missing entries stay loud.
 func T(lang Lang, key string, args ...any) string {

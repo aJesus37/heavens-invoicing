@@ -14,7 +14,7 @@ type ClientRepo struct {
 	db *sql.DB
 }
 
-const clientCols = `id, name, email, phone, telegram_chat_id, pix_key, address, notes, created_at, updated_at`
+const clientCols = `id, name, email, phone, telegram_chat_id, pix_key, address, notes, language, created_at, updated_at`
 
 func (r *ClientRepo) Create(ctx context.Context, c *model.Client) (*model.Client, error) {
 	if c.ID == "" {
@@ -28,8 +28,8 @@ func (r *ClientRepo) Create(ctx context.Context, c *model.Client) (*model.Client
 		c.UpdatedAt = now
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO clients (`+clientCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		c.ID, c.Name, c.Email, c.Phone, c.TelegramChatID, c.PIXKey, c.Address, c.Notes, c.CreatedAt, c.UpdatedAt,
+		`INSERT INTO clients (`+clientCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		c.ID, c.Name, c.Email, c.Phone, c.TelegramChatID, c.PIXKey, c.Address, c.Notes, c.Language, c.CreatedAt, c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -46,8 +46,8 @@ func (r *ClientRepo) Get(ctx context.Context, id string) (*model.Client, error) 
 func (r *ClientRepo) Update(ctx context.Context, c *model.Client) error {
 	c.UpdatedAt = time.Now().UTC()
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE clients SET name = ?, email = ?, phone = ?, telegram_chat_id = ?, pix_key = ?, address = ?, notes = ?, updated_at = ? WHERE id = ?`,
-		c.Name, c.Email, c.Phone, c.TelegramChatID, c.PIXKey, c.Address, c.Notes, c.UpdatedAt, c.ID)
+		`UPDATE clients SET name = ?, email = ?, phone = ?, telegram_chat_id = ?, pix_key = ?, address = ?, notes = ?, language = ?, updated_at = ? WHERE id = ?`,
+		c.Name, c.Email, c.Phone, c.TelegramChatID, c.PIXKey, c.Address, c.Notes, c.Language, c.UpdatedAt, c.ID)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (r *ClientRepo) Delete(ctx context.Context, id string) error {
 
 func scanClient(scan func(dest ...any) error) (*model.Client, error) {
 	var c model.Client
-	err := scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.TelegramChatID, &c.PIXKey, &c.Address, &c.Notes, &c.CreatedAt, &c.UpdatedAt)
+	err := scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.TelegramChatID, &c.PIXKey, &c.Address, &c.Notes, &c.Language, &c.CreatedAt, &c.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

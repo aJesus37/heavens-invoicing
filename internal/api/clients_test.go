@@ -95,6 +95,41 @@ func TestClientsForgedIdentityIgnored(t *testing.T) {
 	}
 }
 
+func TestClientLanguageHandling(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	t.Run("explicit language round-trips", func(t *testing.T) {
+		rec := do(t, h, "POST", "/api/clients", map[string]any{"name": "Acme", "language": "en"})
+		assertStatus(t, rec, 201, "create with language")
+		created := decode[model.Client](t, rec)
+		if created.Language != "en" {
+			t.Fatalf("created.Language = %q, want en", created.Language)
+		}
+
+		rec = do(t, h, "PUT", "/api/clients/"+created.ID, map[string]any{"name": "Acme SA", "language": "pt-BR"})
+		assertStatus(t, rec, 200, "update language")
+		if updated := decode[model.Client](t, rec); updated.Language != "pt-BR" {
+			t.Fatalf("updated.Language = %q, want pt-BR", updated.Language)
+		}
+	})
+
+	t.Run("missing language defaults to pt-BR", func(t *testing.T) {
+		rec := do(t, h, "POST", "/api/clients", map[string]any{"name": "Sem Idioma"})
+		assertStatus(t, rec, 201, "create without language")
+		if created := decode[model.Client](t, rec); created.Language != "pt-BR" {
+			t.Fatalf("default language = %q, want pt-BR", created.Language)
+		}
+	})
+
+	for _, bad := range []string{"es", "PT_BR", "klingon"} {
+		t.Run("rejects invalid language "+bad, func(t *testing.T) {
+			rec := do(t, h, "POST", "/api/clients", map[string]any{"name": "X", "language": bad})
+			assertStatus(t, rec, 400, "create invalid language")
+		})
+	}
+}
+
 func TestClientUpdateEchoesStoredTimestamps(t *testing.T) {
 	env := newTestEnv(t)
 	h := env.handler

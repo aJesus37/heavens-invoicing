@@ -65,6 +65,7 @@
   "error.item_qty": "item %s: quantidade deve ser um número ≥ 1",
   "error.items_required": "Informe pelo menos um item.",
   "error.issue_date_invalid": "Data de emissão inválida.",
+  "error.language_invalid": "Idioma inválido.",
   "error.method_invalid": "Método de entrega inválido.",
   "error.money_empty": "valor vazio",
   "error.money_invalid": "valor inválido %q",

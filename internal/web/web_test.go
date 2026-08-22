@@ -158,3 +158,49 @@ func TestClientDetailNotFound(t *testing.T) {
 		t.Fatalf("got %d want 404", status)
 	}
 }
+
+func TestClientLanguageSelectFlow(t *testing.T) {
+	ts, repos := newTestEnv(t)
+
+	// The new-client form carries the language selector, Português first.
+	_, body := get(t, ts, "/clientes/novo")
+	for _, marker := range []string{`<select id="language" name="language">`, `value="pt-BR"`, `value="en"`} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("new client form missing language select marker %q", marker)
+		}
+	}
+	if !strings.Contains(body, `value="pt-BR" selected`) {
+		t.Error("Português should be preselected by default")
+	}
+
+	resp, _ := postForm(t, ts, "/clientes/novo", url.Values{
+		"name":     {"Bilíngue"},
+		"language": {"en"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("create with language: got %d want 303", resp.StatusCode)
+	}
+	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clientes/")
+	got, err := repos.Clients.Get(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Language != "en" {
+		t.Fatalf("stored language = %q, want en", got.Language)
+	}
+
+	// The edit form preselects the stored language.
+	_, body = get(t, ts, "/clientes/"+id)
+	if !strings.Contains(body, `value="en" selected`) {
+		t.Error("edit form should preselect English for an en client")
+	}
+
+	// Junk languages are rejected instead of persisted.
+	respBad, _ := postForm(t, ts, "/clientes/novo", url.Values{
+		"name":     {"Ruim"},
+		"language": {"klingon"},
+	})
+	if respBad.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid language: got %d want 400", respBad.StatusCode)
+	}
+}

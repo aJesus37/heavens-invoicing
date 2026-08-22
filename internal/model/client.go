@@ -11,6 +11,7 @@ type Client struct {
 	PIXKey         *string   `json:"pix_key,omitempty"`
 	Address        string    `json:"address"`
 	Notes          string    `json:"notes"`
+	Language       string    `json:"language"` // client-facing locale: "en" | "pt-BR"
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
