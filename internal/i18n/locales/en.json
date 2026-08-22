@@ -1,13 +1,13 @@
 {
   "app.name": "Invoices",
-
   "button.cancel": "Cancel",
   "button.create_invoice": "Create invoice",
   "button.create_recurring": "Create recurring",
   "button.save": "Save",
   "button.save_changes": "Save changes",
   "button.save_settings": "Save settings",
-
+  "common.no": "No",
+  "common.yes": "Yes",
   "clients.detail.created_at": "Registered on",
   "clients.detail.edit": "Edit details",
   "clients.detail.empty_invoices": "No invoices for this client.",
@@ -16,7 +16,6 @@
   "clients.empty": "No clients registered.",
   "clients.new": "New client",
   "clients.title": "Clients",
-
   "col.active": "Active",
   "col.address": "City/Address",
   "col.client": "Client",
@@ -38,7 +37,6 @@
   "col.template": "Template",
   "col.total": "Total",
   "col.unit_price": "Unit price",
-
   "dash.empty_pending": "No pending invoices.",
   "dash.empty_recent": "No invoices created yet.",
   "dash.empty_upcoming": "No recurring sends in the next 7 days.",
@@ -46,7 +44,6 @@
   "dash.recent": "Recent invoices",
   "dash.title": "Dashboard",
   "dash.upcoming": "Recurring in the next 7 days",
-
   "detail.actions": "Actions",
   "detail.download_pdf": "Download PDF",
   "detail.mark_paid": "Mark paid",
@@ -56,7 +53,6 @@
   "detail.send": "Send invoice",
   "detail.send_by": "Send via",
   "detail.title": "Invoice #%06d",
-
   "error.client_missing": "Client does not exist.",
   "error.client_required": "Select a client.",
   "error.due_before_issue": "The due date cannot be earlier than the issue date.",
@@ -85,7 +81,6 @@
   "error.template_missing": "Template invoice does not exist.",
   "error.template_required": "Select the template invoice (draft).",
   "error.unit_price": "Unit price: %s.",
-
   "field.admin_telegram_chat_id": "Admin Telegram chat ID",
   "field.business_address": "Business address",
   "field.business_name": "Business name",
@@ -97,34 +92,28 @@
   "field.smtp_port": "SMTP port",
   "field.smtp_user": "SMTP user",
   "field.telegram_bot_token": "Telegram bot token",
-
   "filter.all": "All",
   "filter.cancelled": "Cancelled",
   "filter.draft": "Draft",
   "filter.overdue": "Overdue",
   "filter.paid": "Paid",
   "filter.sent": "Sent",
-
   "freq.monthly": "Monthly",
   "freq.quarterly": "Quarterly",
   "freq.weekly": "Weekly",
   "freq.yearly": "Yearly",
-
   "group.business": "Business",
   "group.language": "Language",
   "group.payment": "Payment",
   "group.smtp": "E-mail (SMTP)",
   "group.telegram": "Telegram",
   "group.whatsapp": "WhatsApp",
-
   "hint.price_format": "Use a comma as the decimal separator, e.g.: 1500.00.",
   "hint.recurring_list": "On each fire the scheduler clones the template invoice as a new draft and sends it through the chosen method.",
   "hint.recurring_template": "On each fire the scheduler clones this draft with a new number and dates.",
-
   "invoices.new_title": "New invoice",
   "invoices.title": "Invoices",
   "items.title": "Items",
-
   "label.address": "Address",
   "label.client": "Client",
   "label.delivery_method": "Delivery method",
@@ -142,16 +131,13 @@
   "label.telegram_chat_id": "Telegram chat ID",
   "label.template_invoice": "Template invoice (drafts)",
   "label.unit_price_brl": "Unit price (R$)",
-
   "locale.en": "English",
   "locale.pt-BR": "Português",
-
   "method.all": "All",
   "method.email": "E-mail",
   "method.record": "Record",
   "method.telegram": "Telegram",
   "method.whatsapp": "WhatsApp",
-
   "nav.aria": "Main navigation",
   "nav.clients": "Clients",
   "nav.dashboard": "Dashboard",
@@ -159,23 +145,20 @@
   "nav.products": "Products",
   "nav.recurring": "Recurring",
   "nav.settings": "Settings",
-
   "products.active": "Active product",
   "products.edit_title": "Edit product",
   "products.empty": "No products registered.",
   "products.new": "New product",
   "products.title": "Products",
-
+  "recurring.delete": "Delete",
   "recurring.empty": "No recurring schedules registered.",
   "recurring.new": "New recurring",
   "recurring.title": "Recurring",
-
   "send.already_paid": "invoice is already paid",
   "send.err_not_configured": "not configured",
   "send.ok": "✅ sent",
   "send.ok_invoice": "✅ Invoice sent.",
   "send.record_failed": "failed to update invoice status",
-
   "settings.hint_business": "Business name, address and default PIX appear in the header of generated PDFs.",
   "settings.hint_locale": "The change applies immediately.",
   "settings.hint_smtp_restart": "SMTP changes take effect after restarting the application.",
@@ -184,13 +167,11 @@
   "settings.saved": "Settings saved.",
   "settings.title": "Settings",
   "settings.wa_loading": "Loading WhatsApp state…",
-
   "status.cancelled": "cancelled",
   "status.draft": "draft",
   "status.overdue": "overdue",
   "status.paid": "paid",
   "status.sent": "sent",
-
   "wa.connected": "✅ Connected",
   "wa.disconnected": "Disconnected.",
   "wa.failed": "❌ Pairing failed: %s",
@@ -199,5 +180,8 @@
   "wa.pairing_wait": "Waiting for pairing…",
   "wa.qr_alt": "Pairing QR code",
   "wa.retry": "Try again",
-  "wa.unavailable": "WhatsApp unavailable on this instance."
+  "wa.unavailable": "WhatsApp unavailable on this instance.",
+  "invoices.empty": "No invoices found.",
+  "wa.err_connection": "connection failed: %s",
+  "wa.err_expired": "pairing timed out"
 }

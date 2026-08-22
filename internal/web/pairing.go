@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/whatsapp"
 )
 
@@ -49,8 +50,9 @@ func newPairing(sess *whatsapp.Session) *pairingManager {
 // start kicks off one pairing attempt. It is safe to call repeatedly: an
 // in-flight attempt is never restarted, and paired sessions short-circuit.
 // The state decision happens under mu, but the blocking session I/O runs
-// outside it.
-func (p *pairingManager) start() {
+// outside it. lang localizes the failure messages recorded for the
+// settings fragment.
+func (p *pairingManager) start(lang i18n.Lang) {
 	p.mu.Lock()
 	if p.sess == nil || p.state == pairPending {
 		p.mu.Unlock()
@@ -73,11 +75,11 @@ func (p *pairingManager) start() {
 	p.errMsg = ""
 	p.mu.Unlock()
 
-	p.attempt(gen)
+	p.attempt(gen, lang)
 }
 
 // attempt runs the blocking half of a pairing attempt with no lock held.
-func (p *pairingManager) attempt(gen int) {
+func (p *pairingManager) attempt(gen int, lang i18n.Lang) {
 	// A connect from boot blocks GetQRChannel; drop it first.
 	if p.sess.IsConnected() {
 		p.sess.Close()
@@ -99,7 +101,7 @@ func (p *pairingManager) attempt(gen int) {
 	dialCancel()
 	if err != nil {
 		cancel()
-		p.fail(fmt.Sprintf("conexão: %v", err))
+		p.fail(i18n.T(lang, "wa.err_connection", err))
 		return
 	}
 
@@ -115,7 +117,7 @@ func (p *pairingManager) attempt(gen int) {
 			// run must not clobber a newer in-flight one.
 			if p.gen == gen && p.state == pairPending {
 				p.state = pairFailed
-				p.errMsg = "pareamento expirou"
+				p.errMsg = i18n.T(lang, "wa.err_expired")
 			}
 			p.mu.Unlock()
 		}()

@@ -1,13 +1,13 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
-<h1 style="margin:0;">Produtos</h1>
-<a class="btn" href="/produtos/novo">Novo produto</a>
+<h1 style="margin:0;">{{T "products.title"}}</h1>
+<a class="btn" href="/produtos/novo">{{T "products.new"}}</a>
 </div>
 
 <div class="panel">
 <table>
 <thead>
-<tr><th>Nome</th><th>Descrição</th><th class="num">Preço unitário</th><th>Moeda</th><th>Ativo</th></tr>
+<tr><th>{{T "col.name"}}</th><th>{{T "col.description"}}</th><th class="num">{{T "col.unit_price"}}</th><th>{{T "col.currency"}}</th><th>{{T "col.active"}}</th></tr>
 </thead>
 <tbody>
 {{if .}}
@@ -17,11 +17,11 @@
 <td>{{with .Description}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td class="num">{{brl .UnitPrice}}</td>
 <td>{{.Currency}}</td>
-<td>{{if .Active}}Sim{{else}}Não{{end}}</td>
+<td>{{if .Active}}{{T "common.yes"}}{{else}}{{T "common.no"}}{{end}}</td>
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="5" class="muted">Nenhum produto cadastrado.</td></tr>
+<tr><td colspan="5" class="muted">{{T "products.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>

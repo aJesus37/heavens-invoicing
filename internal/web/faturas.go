@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -21,13 +22,15 @@ const itemRowCount = 5
 
 var invoiceStatusKeys = []string{"draft", "sent", "paid", "overdue", "cancelled"}
 
+// invoiceStatusFilters backs the status tabs; labels are resolved per
+// request via i18n ("" maps to filter.all).
 var invoiceStatusFilters = []statusFilter{
-	{Key: "", Label: "Todas"},
-	{Key: "draft", Label: "Rascunho"},
-	{Key: "sent", Label: "Enviadas"},
-	{Key: "paid", Label: "Pagas"},
-	{Key: "overdue", Label: "Vencidas"},
-	{Key: "cancelled", Label: "Canceladas"},
+	{Key: ""},
+	{Key: "draft"},
+	{Key: "sent"},
+	{Key: "paid"},
+	{Key: "overdue"},
+	{Key: "cancelled"},
 }
 
 type statusFilter struct {
@@ -36,15 +39,24 @@ type statusFilter struct {
 	Active bool
 }
 
+func (f statusFilter) label(lang i18n.Lang) string {
+	name := f.Key
+	if name == "" {
+		name = "all"
+	}
+	return i18n.T(lang, "filter."+name)
+}
+
 type faturaListData struct {
 	Filters []statusFilter
 	Rows    []invoiceRow
 }
 
 func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	status := r.URL.Query().Get("status")
 	if status != "" && !slices.Contains(invoiceStatusKeys, status) {
-		notFound(w)
+		failNotFound(w, lang)
 		return
 	}
 
@@ -58,21 +70,21 @@ func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
 		invoices, err = h.repos.Invoices.ListByStatus(r.Context(), status)
 	}
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	rows, err := buildInvoiceRows(r.Context(), h, invoices)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
 	filters := make([]statusFilter, 0, len(invoiceStatusFilters))
 	for _, f := range invoiceStatusFilters {
-		filters = append(filters, statusFilter{Key: f.Key, Label: f.Label, Active: f.Key == status})
+		filters = append(filters, statusFilter{Key: f.Key, Label: f.label(lang), Active: f.Key == status})
 	}
 
-	h.render.renderPage(w, http.StatusOK, "faturas.html", "Faturas", faturaListData{
+	h.render.renderPage(w, http.StatusOK, "faturas.html", i18n.T(lang, "invoices.title"), lang, faturaListData{
 		Filters: filters,
 		Rows:    rows,
 	})
@@ -102,9 +114,9 @@ type selectOption struct {
 	Selected bool
 }
 
-func clientOptions(clients []*model.Client, selected string) []selectOption {
+func clientOptions(clients []*model.Client, selected string, lang i18n.Lang) []selectOption {
 	opts := make([]selectOption, 0, len(clients)+1)
-	opts = append(opts, selectOption{Value: "", Label: "— selecione —"})
+	opts = append(opts, selectOption{Value: "", Label: i18n.T(lang, "label.select")})
 	for _, c := range clients {
 		opts = append(opts, selectOption{Value: c.ID, Label: c.Name, Selected: c.ID == selected})
 	}
@@ -112,18 +124,19 @@ func clientOptions(clients []*model.Client, selected string) []selectOption {
 }
 
 func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	clients, err := h.repos.Clients.List(r.Context())
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	today := time.Now()
 	data := &faturaFormData{
-		Clients:   clientOptions(clients, ""),
+		Clients:   clientOptions(clients, "", lang),
 		IssueDate: today.Format("2006-01-02"),
 		DueDate:   today.AddDate(0, 0, 15).Format("2006-01-02"),
 	}
-	h.render.renderPage(w, http.StatusOK, "fatura_nova.html", "Nova fatura", data)
+	h.render.renderPage(w, http.StatusOK, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
 }
 
 // readItemRows collects the fixed set of item inputs, dropping rows that
@@ -146,25 +159,26 @@ func readItemRows(r *http.Request) []itemForm {
 }
 
 // validateItemRows converts typed rows into invoice items, reporting the
-// first problem as a user-facing error that names the offending row.
-func validateItemRows(rows []itemForm) ([]*model.InvoiceItem, error) {
+// first problem as a user-facing (localized) error that names the
+// offending row.
+func validateItemRows(rows []itemForm, lang i18n.Lang) ([]*model.InvoiceItem, error) {
 	items := make([]*model.InvoiceItem, 0, len(rows))
 	for i, row := range rows {
 		label := strconv.Itoa(i + 1)
 		if row.Description == "" {
-			return nil, fmt.Errorf("item %s: informe a descrição", label)
+			return nil, fmt.Errorf("%s", i18n.T(lang, "error.item_desc", label))
 		}
 		qty := int64(1)
 		if row.Quantity != "" {
 			parsed, err := strconv.ParseInt(row.Quantity, 10, 64)
 			if err != nil || parsed < 1 {
-				return nil, fmt.Errorf("item %s: quantidade deve ser um número ≥ 1", label)
+				return nil, fmt.Errorf("%s", i18n.T(lang, "error.item_qty", label))
 			}
 			qty = parsed
 		}
-		cents, err := parseReais(row.UnitPrice)
+		cents, err := parseReais(lang, row.UnitPrice)
 		if err != nil || cents < 0 {
-			return nil, fmt.Errorf("item %s: preço unitário inválido", label)
+			return nil, fmt.Errorf("%s", i18n.T(lang, "error.item_price", label))
 		}
 		items = append(items, &model.InvoiceItem{
 			Description: row.Description,
@@ -177,17 +191,18 @@ func validateItemRows(rows []itemForm) ([]*model.InvoiceItem, error) {
 
 func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 
 	clients, err := h.repos.Clients.List(ctx)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
-	options := clientOptions(clients, r.FormValue("client_id"))
+	options := clientOptions(clients, r.FormValue("client_id"), lang)
 
 	// refail re-renders the form keeping everything the user already typed.
 	refail := func(msg string, code int) {
@@ -201,45 +216,45 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 			Error:     msg,
 		}
 		copy(data.Items[:], readItemRows(r))
-		h.render.renderPage(w, code, "fatura_nova.html", "Nova fatura", data)
+		h.render.renderPage(w, code, "fatura_nova.html", i18n.T(lang, "invoices.new_title"), lang, data)
 	}
 
-	items, err := validateItemRows(readItemRows(r))
+	items, err := validateItemRows(readItemRows(r), lang)
 	if err != nil {
 		refail(err.Error(), http.StatusBadRequest)
 		return
 	}
 	if len(items) == 0 {
-		refail("Informe pelo menos um item.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.items_required"), http.StatusBadRequest)
 		return
 	}
 
 	clientID := r.FormValue("client_id")
 	if clientID == "" {
-		refail("Selecione o cliente.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.client_required"), http.StatusBadRequest)
 		return
 	}
 	if _, err := h.repos.Clients.Get(ctx, clientID); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			refail("Cliente inexistente.", http.StatusBadRequest)
+			refail(i18n.T(lang, "error.client_missing"), http.StatusBadRequest)
 			return
 		}
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
 	issueDate, err := time.ParseInLocation("2006-01-02", r.FormValue("issue_date"), time.Local)
 	if err != nil {
-		refail("Data de emissão inválida.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.issue_date_invalid"), http.StatusBadRequest)
 		return
 	}
 	dueDate, err := time.ParseInLocation("2006-01-02", r.FormValue("due_date"), time.Local)
 	if err != nil {
-		refail("Data de vencimento inválida.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.due_date_invalid"), http.StatusBadRequest)
 		return
 	}
 	if truncDay(dueDate).Before(truncDay(issueDate)) {
-		refail("O vencimento não pode ser anterior à emissão.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.due_before_issue"), http.StatusBadRequest)
 		return
 	}
 
@@ -253,43 +268,40 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 		Items:     items,
 	}
 	if err := h.repos.Invoices.Create(ctx, inv); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/faturas/"+inv.ID, http.StatusSeeOther)
-}
-
-type sendMethodOption struct {
-	Value string
-	Label string
 }
 
 type faturaDetailData struct {
 	Inv          *model.Invoice
 	Client       *model.Client
 	EffectivePix *string
-	SendMethods  []sendMethodOption
+	SendMethods  []selectOption
 }
 
 func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	inv, err := h.repos.Invoices.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	client, err := h.repos.Clients.Get(r.Context(), inv.ClientID)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
-	methods := make([]sendMethodOption, 0, len(methodOrder))
+	methods := make([]selectOption, 0, len(methodOrder))
 	for _, m := range methodOrder {
-		methods = append(methods, sendMethodOption{Value: m, Label: methodLabels[m]})
+		methods = append(methods, selectOption{Value: m, Label: i18n.T(lang, "method."+m)})
 	}
 
 	h.render.renderPage(w, http.StatusOK, "fatura_detalhe.html",
-		fmt.Sprintf("Fatura #%06d", inv.Number),
+		fmt.Sprintf(i18n.T(lang, "detail.title"), inv.Number),
+		lang,
 		faturaDetailData{
 			Inv:          inv,
 			Client:       client,
@@ -309,48 +321,49 @@ type sendResultData struct {
 	Results []channelOut
 }
 
-// sendInvoiceAction backs the "Enviar" button on the invoice detail page:
+// sendInvoiceAction backs the "Send" button on the invoice detail page:
 // it renders the PDF, hands it to the delivery router, and returns an HTML
 // fragment listing the per-channel outcomes inline (htmx swap).
 func (h *Handlers) sendInvoiceAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 
 	method := r.FormValue("method")
 	if !validSendMethod(method) {
-		http.Error(w, "método de envio inválido", http.StatusBadRequest)
+		http.Error(w, i18n.T(lang, "error.send_method_invalid"), http.StatusBadRequest)
 		return
 	}
 	inv, err := h.repos.Invoices.Get(ctx, r.PathValue("id"))
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	client, err := h.repos.Clients.Get(ctx, inv.ClientID)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
 	buf := &bytes.Buffer{}
 	if err := pdf.RenderInvoice(buf, h.sender, *client, *inv); err != nil {
 		log.Printf("web: render pdf for invoice %s: %v", inv.ID, err)
-		http.Error(w, "erro interno ao gerar PDF", http.StatusInternalServerError)
+		http.Error(w, i18n.T(lang, "error.pdf_render"), http.StatusInternalServerError)
 		return
 	}
 
 	results, err := h.router.SendInvoice(ctx, *client, *inv, buf.Bytes(), method)
 	if err != nil && len(results) == 0 {
 		// Routing refused up front (e.g. the invoice is already paid);
-		// surface the reason instead of a fake record-update failure.
-		http.Error(w, err.Error(), http.StatusConflict)
+		// surface a localized reason instead of a fake update failure.
+		http.Error(w, sendErrText(lang, err), http.StatusConflict)
 		return
 	}
 	out := make([]channelOut, 0, len(results)+1)
 	sent := false
 	for _, res := range results {
-		ch := channelOut{Label: methodLabels[res.Channel], OK: res.Err == nil}
+		ch := channelOut{Label: i18n.T(lang, "method."+res.Channel), OK: res.Err == nil}
 		if res.Err != nil {
-			ch.Err = res.Err.Error()
+			ch.Err = sendErrText(lang, res.Err)
 		} else {
 			sent = true
 		}
@@ -359,9 +372,25 @@ func (h *Handlers) sendInvoiceAction(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Persistence failed after delivery; details stay in the server log.
 		log.Printf("web: send invoice %s: %v", inv.ID, err)
-		out = append(out, channelOut{Label: "Registro", Err: "falha ao atualizar status da fatura"})
+		out = append(out, channelOut{
+			Label: i18n.T(lang, "method.record"),
+			Err:   i18n.T(lang, "send.record_failed"),
+		})
 	}
-	h.render.renderFragment(w, "send_resultados.html", sendResultData{Sent: sent, Results: out})
+	h.render.renderFragment(w, "send_resultados.html", lang, sendResultData{Sent: sent, Results: out})
+}
+
+// sendErrText renders router errors in the UI language when they are known
+// sentinels; anything else (SMTP failures etc.) passes through as-is.
+func sendErrText(lang i18n.Lang, err error) string {
+	switch {
+	case errors.Is(err, deliver.ErrNotConfigured):
+		return i18n.T(lang, "send.err_not_configured")
+	case errors.Is(err, deliver.ErrInvoicePaid):
+		return i18n.T(lang, "send.already_paid")
+	default:
+		return err.Error()
+	}
 }
 
 func validSendMethod(m string) bool {
@@ -374,9 +403,10 @@ func validSendMethod(m string) bool {
 }
 
 func (h *Handlers) markInvoicePaidAction(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	id := r.PathValue("id")
 	if err := h.repos.Invoices.UpdateStatus(r.Context(), id, "paid"); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/faturas/"+id, http.StatusSeeOther)

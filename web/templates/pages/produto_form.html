@@ -1,5 +1,5 @@
 {{define "content"}}
-<h1>{{if .Editing}}Editar produto{{else}}Novo produto{{end}}</h1>
+<h1>{{if .Editing}}{{T "products.edit_title"}}{{else}}{{T "products.new"}}{{end}}</h1>
 
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
@@ -7,29 +7,29 @@
 <form method="post" action="{{.Action}}" class="stack">
 <div class="grid">
 <div>
-<label for="name">Nome *</label>
+<label for="name">{{T "label.name"}} *</label>
 <input type="text" id="name" name="name" value="{{.Name}}" required>
 </div>
 <div>
-<label for="unit_price">Preço unitário (R$) *</label>
+<label for="unit_price">{{T "label.unit_price_brl"}} *</label>
 <input type="text" id="unit_price" name="unit_price" value="{{.Price}}" placeholder="1500,00" required>
-<p class="hint">Use vírgula como separador decimal, ex.: 1500,00.</p>
+<p class="hint">{{T "hint.price_format"}}</p>
 </div>
 <div class="wide">
-<label for="description">Descrição</label>
+<label for="description">{{T "col.description"}}</label>
 <textarea id="description" name="description">{{.Description}}</textarea>
 </div>
 {{if .Editing}}
 <div class="wide">
 <label>
-<input type="checkbox" name="active" {{if .Active}}checked{{end}}> Produto ativo
+<input type="checkbox" name="active" {{if .Active}}checked{{end}}> {{T "products.active"}}
 </label>
 </div>
 {{end}}
 </div>
 <div class="actions">
-<button type="submit">Salvar</button>
-<a class="btn btn-secondary" href="/produtos">Cancelar</a>
+<button type="submit">{{T "button.save"}}</button>
+<a class="btn btn-secondary" href="/produtos">{{T "button.cancel"}}</a>
 </div>
 </form>
 </div>

@@ -1,13 +1,13 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
-<h1 style="margin:0;">Clientes</h1>
-<a class="btn" href="/clientes/novo">Novo cliente</a>
+<h1 style="margin:0;">{{T "clients.title"}}</h1>
+<a class="btn" href="/clientes/novo">{{T "clients.new"}}</a>
 </div>
 
 <div class="panel">
 <table>
 <thead>
-<tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Cidade/Endereço</th></tr>
+<tr><th>{{T "col.name"}}</th><th>{{T "col.email"}}</th><th>{{T "col.phone"}}</th><th>{{T "col.address"}}</th></tr>
 </thead>
 <tbody>
 {{if .}}
@@ -20,7 +20,7 @@
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="4" class="muted">Nenhum cliente cadastrado.</td></tr>
+<tr><td colspan="4" class="muted">{{T "clients.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>

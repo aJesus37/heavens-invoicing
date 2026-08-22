@@ -2,10 +2,19 @@ package deliver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jesus/invoice-app/internal/model"
+)
+
+// Sentinel delivery errors. The texts are part of the admin-facing
+// summaries and stay Portuguese; callers that re-render them in another
+// language (the web UI) match with errors.Is instead of comparing strings.
+var (
+	ErrNotConfigured = errors.New("not configured")
+	ErrInvoicePaid   = errors.New("fatura já está paga")
 )
 
 // ChannelResult reports the outcome of one delivery attempt.
@@ -70,7 +79,7 @@ func NewRouter(invoices InvoiceStatusUpdater, notifier Notifier, email, whatsapp
 // freshly cloned drafts).
 func (r *Router) SendInvoice(ctx context.Context, c model.Client, inv model.Invoice, pdf []byte, method string) ([]ChannelResult, error) {
 	if inv.Status == "paid" {
-		return nil, fmt.Errorf("fatura já está paga")
+		return nil, ErrInvoicePaid
 	}
 	targets, err := r.targets(c, method)
 	if err != nil {
@@ -139,7 +148,7 @@ func (r *Router) run(ctx context.Context, c model.Client, inv model.Invoice, tar
 	for _, t := range targets {
 		var err error
 		if t.deliverer == nil {
-			err = fmt.Errorf("not configured")
+			err = ErrNotConfigured
 		} else {
 			err = send(t.deliverer)
 		}

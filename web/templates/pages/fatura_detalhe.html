@@ -1,16 +1,16 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
-<h1 style="margin:0;">Fatura #{{printf "%06d" .Inv.Number}} {{template "statusBadge" .Inv}}</h1>
-<a class="btn btn-secondary" href="/api/invoices/{{.Inv.ID}}/pdf">Baixar PDF</a>
+<h1 style="margin:0;">{{T "detail.title" .Inv.Number}} {{template "statusBadge" .Inv}}</h1>
+<a class="btn btn-secondary" href="/api/invoices/{{.Inv.ID}}/pdf">{{T "detail.download_pdf"}}</a>
 </div>
 
 <div class="panel">
 <dl class="kv">
-<div><dt>Cliente</dt><dd><a href="/clientes/{{.Client.ID}}">{{.Client.Name}}</a></dd></div>
-<div><dt>Emissão</dt><dd>{{dtbr .Inv.IssueDate}}</dd></div>
-<div><dt>Vencimento</dt><dd>{{dtbr .Inv.DueDate}}</dd></div>
+<div><dt>{{T "col.client"}}</dt><dd><a href="/clientes/{{.Client.ID}}">{{.Client.Name}}</a></dd></div>
+<div><dt>{{T "col.issue_date"}}</dt><dd>{{dtbr .Inv.IssueDate}}</dd></div>
+<div><dt>{{T "col.due_date"}}</dt><dd>{{dtbr .Inv.DueDate}}</dd></div>
 {{with .EffectivePix}}
-<div><dt>Chave PIX</dt><dd>{{.}}</dd></div>
+<div><dt>{{T "detail.pix_key"}}</dt><dd>{{.}}</dd></div>
 {{end}}
 </dl>
 </div>
@@ -18,7 +18,7 @@
 <div class="panel">
 <table>
 <thead>
-<tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Preço unit.</th><th class="num">Total</th></tr>
+<tr><th>{{T "col.description"}}</th><th class="num">{{T "col.qty"}}</th><th class="num">{{T "col.unit_price"}}</th><th class="num">{{T "col.total"}}</th></tr>
 </thead>
 <tbody>
 {{range .Inv.Items}}
@@ -31,17 +31,17 @@
 {{end}}
 </tbody>
 <tfoot>
-<tr><td colspan="3" class="num"><strong>Total</strong></td><td class="num"><strong>{{brl .Inv.Total}}</strong></td></tr>
+<tr><td colspan="3" class="num"><strong>{{T "col.total"}}</strong></td><td class="num"><strong>{{brl .Inv.Total}}</strong></td></tr>
 </tfoot>
 </table>
-{{with .Inv.Notes}}<p class="muted">Observações: {{.}}</p>{{end}}
+{{with .Inv.Notes}}<p class="muted">{{T "detail.notes"}} {{.}}</p>{{end}}
 </div>
 
 <div class="panel">
-<h2 style="margin-top:0;">Ações</h2>
+<h2 style="margin-top:0;">{{T "detail.actions"}}</h2>
 
 {{if ne .Inv.Status "paid"}}
-<label for="send-method">Enviar por</label>
+<label for="send-method">{{T "detail.send_by"}}</label>
 <div class="actions">
 <select id="send-method" name="method" style="max-width:12rem;">
 {{range .SendMethods}}
@@ -52,16 +52,16 @@
         hx-include="#send-method"
         hx-target="#send-resultados"
         hx-swap="innerHTML"
-        {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>Enviar fatura</button>
+        {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>{{T "detail.send"}}</button>
 {{if ne .Inv.Status "cancelled"}}
 <form method="post" action="/faturas/{{.Inv.ID}}/marcar-paga" style="display:inline;">
-<button type="submit">Marcar paga</button>
+<button type="submit">{{T "detail.mark_paid"}}</button>
 </form>
 {{end}}
 </div>
 <div id="send-resultados" aria-live="polite"></div>
 {{else}}
-<p class="muted">Faturas pagas não podem ser reenviadas.</p>
+<p class="muted">{{T "detail.paid_no_resend"}}</p>
 {{end}}
 </div>
 {{end}}

@@ -6,20 +6,22 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/skip2/go-qrcode"
 )
 
-// settingsField describes one row of the settings form.
+// settingsField describes one row of the settings form. Labels are
+// resolved at render time from field.<key> catalog entries.
 type settingsField struct {
 	Key      string
-	Label    string
 	Value    string
 	Kind     string // "text" | "password" | "textarea"
 	KeepHint bool   // secret: blank input keeps the stored value
 }
 
 type configuracoesData struct {
+	Locale    i18n.Lang
 	Fields    []settingsField
 	Saved     bool
 	WAEnabled bool
@@ -35,16 +37,16 @@ var secretKeys = map[string]bool{
 
 func settingsFields() []settingsField {
 	return []settingsField{
-		{Key: repo.SettingBusinessName, Label: "Nome do negócio", Kind: "text"},
-		{Key: repo.SettingBusinessAddress, Label: "Endereço do negócio", Kind: "textarea"},
-		{Key: repo.SettingDefaultPIXKey, Label: "Chave PIX padrão", Kind: "text"},
-		{Key: repo.SettingSMTPHost, Label: "Servidor SMTP", Kind: "text"},
-		{Key: repo.SettingSMTPPort, Label: "Porta SMTP", Kind: "text"},
-		{Key: repo.SettingSMTPUser, Label: "Usuário SMTP", Kind: "text"},
-		{Key: repo.SettingSMTPPass, Label: "Senha SMTP", Kind: "password", KeepHint: true},
-		{Key: repo.SettingSMTPFrom, Label: "Remetente (From)", Kind: "text"},
-		{Key: repo.SettingTelegramBotToken, Label: "Token do bot Telegram", Kind: "password", KeepHint: true},
-		{Key: repo.SettingAdminTelegramChatID, Label: "Chat ID admin no Telegram", Kind: "text"},
+		{Key: repo.SettingBusinessName, Kind: "text"},
+		{Key: repo.SettingBusinessAddress, Kind: "textarea"},
+		{Key: repo.SettingDefaultPIXKey, Kind: "text"},
+		{Key: repo.SettingSMTPHost, Kind: "text"},
+		{Key: repo.SettingSMTPPort, Kind: "text"},
+		{Key: repo.SettingSMTPUser, Kind: "text"},
+		{Key: repo.SettingSMTPPass, Kind: "password", KeepHint: true},
+		{Key: repo.SettingSMTPFrom, Kind: "text"},
+		{Key: repo.SettingTelegramBotToken, Kind: "password", KeepHint: true},
+		{Key: repo.SettingAdminTelegramChatID, Kind: "text"},
 	}
 }
 
@@ -61,6 +63,7 @@ func (h *Handlers) loadSettings(w http.ResponseWriter, r *http.Request) *configu
 		fields[i].Value = value
 	}
 	return &configuracoesData{
+		Locale:    h.lang(r),
 		Fields:    fields,
 		Saved:     r.URL.Query().Get("saved") == "1",
 		WAEnabled: h.wa != nil,
@@ -68,13 +71,15 @@ func (h *Handlers) loadSettings(w http.ResponseWriter, r *http.Request) *configu
 }
 
 func (h *Handlers) settingsForm(w http.ResponseWriter, r *http.Request) {
-	h.render.renderPage(w, http.StatusOK, "configuracoes.html", "Configurações", h.loadSettings(w, r))
+	lang := h.lang(r)
+	h.render.renderPage(w, http.StatusOK, "configuracoes.html", i18n.T(lang, "settings.title"), lang, h.loadSettings(w, r))
 }
 
 func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	for _, f := range settingsFields() {
@@ -83,8 +88,20 @@ func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {
 			continue // keep stored secret when left blank
 		}
 		if err := h.repos.Settings.Set(ctx, f.Key, value); err != nil {
-			writeRepoErr(w, err)
+			writeRepoErr(w, lang, err)
 			return
+		}
+	}
+	// The language selector is not part of settingsFields; only persist
+	// values we actually understand so junk can't break every page render.
+	if v := r.FormValue(repo.SettingLocale); v != "" {
+		if parsed, ok := i18n.Parse(v); ok {
+			if err := h.repos.Settings.Set(ctx, repo.SettingLocale, string(parsed)); err != nil {
+				writeRepoErr(w, lang, err)
+				return
+			}
+		} else {
+			log.Printf("web: ignoring unsupported locale value %q", v)
 		}
 	}
 	http.Redirect(w, r, "/configuracoes?saved=1", http.StatusSeeOther)
@@ -99,6 +116,7 @@ type waStatusData struct {
 }
 
 func (h *Handlers) whatsappStatusFragment(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	data := waStatusData{Enabled: h.wa != nil}
 	if h.wa != nil {
 		state, qr, errMsg := h.pairing.snapshot()
@@ -116,27 +134,28 @@ func (h *Handlers) whatsappStatusFragment(w http.ResponseWriter, r *http.Request
 			data.State = pairIdle
 		}
 	}
-	h.render.renderFragment(w, "wa_status.html", data)
+	h.render.renderFragment(w, "wa_status.html", lang, data)
 }
 
 // whatsappConnect starts a pairing attempt and returns the refreshed
 // fragment so the QR appears without a full page reload.
 func (h *Handlers) whatsappConnect(w http.ResponseWriter, r *http.Request) {
-	h.pairing.start()
+	h.pairing.start(h.lang(r))
 	h.whatsappStatusFragment(w, r)
 }
 
 // whatsappQRPNG encodes the current pairing code as a PNG image.
 func (h *Handlers) whatsappQRPNG(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	_, qr, _ := h.pairing.snapshot()
 	if qr == "" {
-		http.Error(w, "nenhum QR ativo", http.StatusNotFound)
+		http.Error(w, i18n.T(lang, "error.no_qr"), http.StatusNotFound)
 		return
 	}
 	png, err := qrcode.Encode(qr, qrcode.Medium, 256)
 	if err != nil {
 		log.Printf("web: encode qr: %v", err)
-		http.Error(w, "erro interno", http.StatusInternalServerError)
+		failInternal(w, lang)
 		return
 	}
 	w.Header().Set("Content-Type", "image/png")

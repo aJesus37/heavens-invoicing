@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -30,9 +31,10 @@ type recorrentesData struct {
 
 func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 	schedules, err := h.repos.Recurring.List(ctx)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	rows := make([]recurringRowData, 0, len(schedules))
@@ -41,8 +43,8 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 			ID:             s.ID,
 			ClientName:     h.clientName(ctx, s.ClientID),
 			TemplateID:     s.InvoiceTemplateID,
-			FrequencyLabel: frequencyLabels[s.Frequency],
-			MethodLabel:    methodLabels[s.DeliveryMethod],
+			FrequencyLabel: i18n.T(lang, "freq."+s.Frequency),
+			MethodLabel:    i18n.T(lang, "method."+s.DeliveryMethod),
 			Next:           s.NextSendDate,
 			Last:           s.LastSentDate,
 			Active:         s.Active,
@@ -52,7 +54,7 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, row)
 	}
-	h.render.renderPage(w, http.StatusOK, "recorrentes.html", "Recorrentes", recorrentesData{Rows: rows})
+	h.render.renderPage(w, http.StatusOK, "recorrentes.html", i18n.T(lang, "recurring.title"), lang, recorrentesData{Rows: rows})
 }
 
 type recorrenteFormData struct {
@@ -66,22 +68,25 @@ type recorrenteFormData struct {
 	Error      string
 }
 
-func optionsFrom(values []string, labels map[string]string, selected string) []selectOption {
+// optionsFrom builds select options translating each value through the
+// given i18n key prefix ("freq." or "method.").
+func optionsFrom(lang i18n.Lang, prefix string, values []string, selected string) []selectOption {
 	opts := make([]selectOption, 0, len(values)+1)
-	opts = append(opts, selectOption{Value: "", Label: "— selecione —"})
+	opts = append(opts, selectOption{Value: "", Label: i18n.T(lang, "label.select")})
 	for _, v := range values {
-		opts = append(opts, selectOption{Value: v, Label: labels[v], Selected: v == selected})
+		opts = append(opts, selectOption{Value: v, Label: i18n.T(lang, prefix+v), Selected: v == selected})
 	}
 	return opts
 }
 
 func (h *Handlers) newRecurringForm(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	data, err := h.recurringFormBase(r, "")
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "recorrente_novo.html", "Nova recorrência", data)
+	h.render.renderPage(w, http.StatusOK, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
 }
 
 // recurringFormBase assembles the select options for the new-recurring form.
@@ -89,6 +94,7 @@ func (h *Handlers) newRecurringForm(w http.ResponseWriter, r *http.Request) {
 // clones on each fire).
 func (h *Handlers) recurringFormBase(r *http.Request, clientFilter string) (*recorrenteFormData, error) {
 	ctx := r.Context()
+	lang := h.lang(r)
 	clients, err := h.repos.Clients.List(ctx)
 	if err != nil {
 		return nil, err
@@ -99,35 +105,36 @@ func (h *Handlers) recurringFormBase(r *http.Request, clientFilter string) (*rec
 	}
 
 	tplOpts := make([]selectOption, 0, len(drafts)+1)
-	tplOpts = append(tplOpts, selectOption{Value: "", Label: "— selecione —"})
+	tplOpts = append(tplOpts, selectOption{Value: "", Label: i18n.T(lang, "label.select")})
 	for _, inv := range drafts {
 		label := fmt.Sprintf("#%06d · %s · %s", inv.Number, h.clientName(ctx, inv.ClientID), pdf.FormatBRL(inv.Total))
 		tplOpts = append(tplOpts, selectOption{Value: inv.ID, Label: label})
 	}
 
 	return &recorrenteFormData{
-		Clients:   clientOptions(clients, ""),
+		Clients:   clientOptions(clients, "", lang),
 		Templates: tplOpts,
-		Frequency: optionsFrom(frequencyOrder, frequencyLabels, ""),
-		Methods:   optionsFrom(methodOrder, methodLabels, ""),
+		Frequency: optionsFrom(lang, "freq.", frequencyOrder, ""),
+		Methods:   optionsFrom(lang, "method.", methodOrder, ""),
 		NextDate:  time.Now().Format("2006-01-02"),
 	}, nil
 }
 
 func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	refail := func(msg string, code int) {
 		data, err := h.recurringFormBase(r, "")
 		if err != nil {
-			writeRepoErr(w, err)
+			writeRepoErr(w, lang, err)
 			return
 		}
 		data.Error = msg
-		h.render.renderPage(w, code, "recorrente_novo.html", "Nova recorrência", data)
+		h.render.renderPage(w, code, "recorrente_novo.html", i18n.T(lang, "recurring.new"), lang, data)
 	}
 
 	clientID := r.FormValue("client_id")
@@ -137,33 +144,33 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case clientID == "":
-		refail("Selecione o cliente.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.client_required"), http.StatusBadRequest)
 		return
 	case templateID == "":
-		refail("Selecione a fatura modelo (rascunho).", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.template_required"), http.StatusBadRequest)
 		return
 	case !slices.Contains(frequencyOrder, frequency):
-		refail("Frequência inválida.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.frequency_invalid"), http.StatusBadRequest)
 		return
 	case !slices.Contains(methodOrder, method):
-		refail("Método de entrega inválido.", http.StatusBadRequest)
+		refail(i18n.T(lang, "error.method_invalid"), http.StatusBadRequest)
 		return
 	}
 
 	if _, err := h.repos.Clients.Get(ctx, clientID); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			refail("Cliente inexistente.", http.StatusBadRequest)
+			refail(i18n.T(lang, "error.client_missing"), http.StatusBadRequest)
 			return
 		}
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	if _, err := h.repos.Invoices.Get(ctx, templateID); err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
-			refail("Fatura modelo inexistente.", http.StatusBadRequest)
+			refail(i18n.T(lang, "error.template_missing"), http.StatusBadRequest)
 			return
 		}
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
@@ -171,7 +178,7 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("next_send_date"); v != "" {
 		parsed, err := time.ParseInLocation("2006-01-02", v, time.Local)
 		if err != nil {
-			refail("Data do próximo envio inválida.", http.StatusBadRequest)
+			refail(i18n.T(lang, "error.next_date_invalid"), http.StatusBadRequest)
 			return
 		}
 		nextSend = parsed
@@ -185,15 +192,16 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 		NextSendDate:      nextSend,
 	}
 	if err := h.repos.Recurring.Create(ctx, s); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
 }
 
 func (h *Handlers) deleteRecurring(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	if err := h.repos.Recurring.Delete(r.Context(), r.PathValue("id")); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)

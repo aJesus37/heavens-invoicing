@@ -1,13 +1,23 @@
 {{define "content"}}
-<h1>Configurações</h1>
+<h1>{{T "settings.title"}}</h1>
 
-{{if .Saved}}<div class="ok-banner">Configurações salvas.</div>{{end}}
+{{if .Saved}}<div class="ok-banner">{{T "settings.saved"}}</div>{{end}}
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
 <form method="post" action="/configuracoes" class="stack">
 <div class="panel">
-<h2 style="margin-top:0;">Negócio</h2>
-<p class="hint">Nome, endereço e PIX padrão aparecem no cabeçalho dos PDFs gerados.</p>
+<h2 style="margin-top:0;">{{T "group.language"}}</h2>
+<label for="locale">{{T "field.locale"}}</label>
+<select id="locale" name="locale">
+<option value="en" {{if eq .Locale "en"}}selected{{end}}>{{T "locale.en"}}</option>
+<option value="pt-BR" {{if eq .Locale "pt-BR"}}selected{{end}}>{{T "locale.pt-BR"}}</option>
+</select>
+<p class="hint">{{T "settings.hint_locale"}}</p>
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0;">{{T "group.business"}}</h2>
+<p class="hint">{{T "settings.hint_business"}}</p>
 {{range .Fields}}
 {{if or (eq .Key "business_name") (eq .Key "business_address")}}
 {{template "settingsField" .}}
@@ -16,49 +26,49 @@
 </div>
 
 <div class="panel">
-<h2 style="margin-top:0;">Pagamento</h2>
+<h2 style="margin-top:0;">{{T "group.payment"}}</h2>
 {{range .Fields}}
 {{if eq .Key "default_pix_key"}}{{template "settingsField" .}}{{end}}
 {{end}}
 </div>
 
 <div class="panel">
-<h2 style="margin-top:0;">E-mail (SMTP)</h2>
+<h2 style="margin-top:0;">{{T "group.smtp"}}</h2>
 {{range .Fields}}
 {{if hasPrefix .Key "smtp_"}}{{template "settingsField" .}}{{end}}
 {{end}}
-<p class="hint">Alterações de SMTP entram em vigor após reiniciar o aplicativo.</p>
+<p class="hint">{{T "settings.hint_smtp_restart"}}</p>
 </div>
 
 <div class="panel">
-<h2 style="margin-top:0;">Telegram</h2>
+<h2 style="margin-top:0;">{{T "group.telegram"}}</h2>
 {{range .Fields}}
 {{if hasPrefix .Key "telegram_"}}{{template "settingsField" .}}{{end}}
 {{end}}
-<p class="hint">Alterações de Telegram entram em vigor após reiniciar o aplicativo.</p>
+<p class="hint">{{T "settings.hint_telegram_restart"}}</p>
 </div>
 
-<button type="submit">Salvar configurações</button>
+<button type="submit">{{T "button.save_settings"}}</button>
 </form>
 
 <div class="panel">
-<h2 style="margin-top:0;">WhatsApp</h2>
+<h2 style="margin-top:0;">{{T "group.whatsapp"}}</h2>
 <div id="wa-status"
      hx-get="/configuracoes/whatsapp/status"
      hx-trigger="load, every 5s"
      hx-swap="innerHTML">
-<p class="muted">Carregando estado do WhatsApp…</p>
+<p class="muted">{{T "settings.wa_loading"}}</p>
 </div>
 </div>
 {{end}}
 
 {{define "settingsField"}}
-<label for="{{.Key}}">{{.Label}}</label>
+<label for="{{.Key}}">{{T (print "field." .Key)}}</label>
 {{if eq .Kind "textarea"}}
 <textarea id="{{.Key}}" name="{{.Key}}" rows="3">{{.Value}}</textarea>
 {{else}}
 <input type="{{if eq .Kind "password"}}password{{else}}text{{end}}"
        id="{{.Key}}" name="{{.Key}}" value="{{.Value}}"
-       {{if and .KeepHint (not .Value)}}placeholder="(deixe vazio para manter o valor salvo)"{{end}}>
+       {{if and .KeepHint (not .Value)}}placeholder="{{T "settings.keep_secret"}}"{{end}}>
 {{end}}
 {{end}}

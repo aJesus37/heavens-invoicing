@@ -5,6 +5,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/jesus/invoice-app/internal/i18n"
 )
 
 // formatReais renders cents as a plain decimal string suitable for
@@ -19,13 +21,14 @@ func formatReais(cents int64) string {
 }
 
 // parseReais accepts pt-BR ("1.234,56") and US-style ("1,234.56") decimal
-// input, an optional R$ prefix, and returns whole cents.
-func parseReais(s string) (int64, error) {
+// input, an optional R$ prefix, and returns whole cents. Error text is
+// localized for form banners.
+func parseReais(lang i18n.Lang, s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(strings.ToUpper(s), "R$")
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return 0, fmt.Errorf("valor vazio")
+		return 0, fmt.Errorf("%s", i18n.T(lang, "error.money_empty"))
 	}
 
 	hasComma := strings.Contains(s, ",")
@@ -44,14 +47,14 @@ func parseReais(s string) (int64, error) {
 
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0, fmt.Errorf("valor inválido %q", s)
+		return 0, fmt.Errorf("%s", i18n.T(lang, "error.money_invalid", s))
 	}
 	if math.Abs(v) >= 1e10 {
-		return 0, fmt.Errorf("valor fora do intervalo aceito")
+		return 0, fmt.Errorf("%s", i18n.T(lang, "error.money_range"))
 	}
 	cents := int64(math.Round(v * 100))
 	if cents == 0 && v != 0 {
-		return 0, fmt.Errorf("valor muito pequeno")
+		return 0, fmt.Errorf("%s", i18n.T(lang, "error.money_too_small"))
 	}
 	return cents, nil
 }

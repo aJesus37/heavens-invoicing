@@ -1,5 +1,5 @@
 {{define "content"}}
-<h1>Nova recorrência</h1>
+<h1>{{T "recurring.new"}}</h1>
 
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
@@ -7,7 +7,7 @@
 <form method="post" action="/recorrentes/novo" class="stack">
 <div class="grid">
 <div>
-<label for="client_id">Cliente *</label>
+<label for="client_id">{{T "label.client"}} *</label>
 <select id="client_id" name="client_id" required>
 {{range .Clients}}
 <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
@@ -15,16 +15,16 @@
 </select>
 </div>
 <div class="wide">
-<label for="invoice_template_id">Fatura modelo (rascunhos) *</label>
+<label for="invoice_template_id">{{T "label.template_invoice"}} *</label>
 <select id="invoice_template_id" name="invoice_template_id" required>
 {{range .Templates}}
 <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
 {{end}}
 </select>
-<p class="hint">A cada disparo o agendador clona este rascunho com nova numeração e datas.</p>
+<p class="hint">{{T "hint.recurring_template"}}</p>
 </div>
 <div>
-<label for="frequency">Frequência *</label>
+<label for="frequency">{{T "label.frequency"}} *</label>
 <select id="frequency" name="frequency" required>
 {{range .Frequency}}
 <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
@@ -32,7 +32,7 @@
 </select>
 </div>
 <div>
-<label for="delivery_method">Método de entrega *</label>
+<label for="delivery_method">{{T "label.delivery_method"}} *</label>
 <select id="delivery_method" name="delivery_method" required>
 {{range .Methods}}
 <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
@@ -40,14 +40,14 @@
 </select>
 </div>
 <div>
-<label for="next_send_date">Próximo envio *</label>
+<label for="next_send_date">{{T "label.next_send"}} *</label>
 <input type="date" id="next_send_date" name="next_send_date" value="{{.NextDate}}" required>
 </div>
 </div>
 
 <div class="actions">
-<button type="submit">Criar recorrência</button>
-<a class="btn btn-secondary" href="/recorrentes">Cancelar</a>
+<button type="submit">{{T "button.create_recurring"}}</button>
+<a class="btn btn-secondary" href="/recorrentes">{{T "button.cancel"}}</a>
 </div>
 </form>
 </div>

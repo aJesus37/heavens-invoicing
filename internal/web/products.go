@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -19,16 +20,17 @@ type productForm struct {
 }
 
 func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	products, err := h.repos.Products.List(r.Context())
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "produtos.html", "Produtos", products)
+	h.render.renderPage(w, http.StatusOK, "produtos.html", i18n.T(lang, "products.title"), lang, products)
 }
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {
-	h.render.renderPage(w, http.StatusOK, "produto_form.html", "Novo produto", &productForm{Action: "/produtos/novo"})
+	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(h.lang(r), "products.new"), h.lang(r), &productForm{Action: "/produtos/novo"})
 }
 
 func formToProduct(r *http.Request) (*model.Product, productForm) {
@@ -42,36 +44,38 @@ func formToProduct(r *http.Request) (*model.Product, productForm) {
 }
 
 func (h *Handlers) createProduct(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	p, f := formToProduct(r)
 	f.Action = "/produtos/novo"
 
-	cents, err := parseReais(f.Price)
+	cents, err := parseReais(lang, f.Price)
 	if err != nil {
-		f.Error = "Preço unitário: " + err.Error() + "."
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", "Novo produto", &f)
+		f.Error = i18n.T(lang, "error.unit_price", err.Error())
+		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
 		return
 	}
 	if strings.TrimSpace(p.Name) == "" {
-		f.Error = "O nome é obrigatório."
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", "Novo produto", &f)
+		f.Error = i18n.T(lang, "error.name_required")
+		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.new"), lang, &f)
 		return
 	}
 	p.UnitPrice = cents
 	if _, err := h.repos.Products.Create(r.Context(), p); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/produtos", http.StatusSeeOther)
 }
 
 func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	p, err := h.repos.Products.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	f := &productForm{
@@ -83,36 +87,37 @@ func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {
 		Editing:     true,
 		ID:          p.ID,
 	}
-	h.render.renderPage(w, http.StatusOK, "produto_form.html", "Editar produto", f)
+	h.render.renderPage(w, http.StatusOK, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, f)
 }
 
 func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	id := r.PathValue("id")
 	p, err := h.repos.Products.Get(r.Context(), id)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	_, f := formToProduct(r)
-	cents, err := parseReais(f.Price)
+	cents, err := parseReais(lang, f.Price)
 	if err != nil {
-		f.Error = "Preço unitário: " + err.Error() + "."
+		f.Error = i18n.T(lang, "error.unit_price", err.Error())
 		f.Action = "/produtos/" + id + "/editar"
 		f.Editing = true
 		f.ID = id
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", "Editar produto", &f)
+		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
 		return
 	}
 	if strings.TrimSpace(f.Name) == "" {
-		f.Error = "O nome é obrigatório."
+		f.Error = i18n.T(lang, "error.name_required")
 		f.Action = "/produtos/" + id + "/editar"
 		f.Editing = true
 		f.ID = id
-		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", "Editar produto", &f)
+		h.render.renderPage(w, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
 		return
 	}
 	p.Name = strings.TrimSpace(f.Name)
@@ -120,7 +125,7 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 	p.UnitPrice = cents
 	p.Active = f.Active
 	if err := h.repos.Products.Update(r.Context(), p); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/produtos", http.StatusSeeOther)

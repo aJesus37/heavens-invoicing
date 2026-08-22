@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/whatsapp"
@@ -90,20 +91,15 @@ func (h *Handlers) Mux() *http.ServeMux {
 	return mux
 }
 
-// notFound replies with a plain 404; missing ids are never template errors.
-func notFound(w http.ResponseWriter) {
-	http.Error(w, "não encontrado", http.StatusNotFound)
-}
-
 // writeRepoErr maps repo failures: ErrNotFound → 404, anything else is an
 // unexpected internal error.
-func writeRepoErr(w http.ResponseWriter, err error) {
+func writeRepoErr(w http.ResponseWriter, lang i18n.Lang, err error) {
 	if errors.Is(err, repo.ErrNotFound) {
-		notFound(w)
+		failNotFound(w, lang)
 		return
 	}
 	log.Printf("web: repo error: %v", err)
-	http.Error(w, "erro interno", http.StatusInternalServerError)
+	failInternal(w, lang)
 }
 
 // strPtr converts a form value to a nullable field: blank means unset.

@@ -3,11 +3,11 @@
 {{range .Results}}
 <li>
 <strong>{{.Label}}</strong>:
-{{if .OK}}<span style="color:#1a7f37;">✅ enviado</span>
+{{if .OK}}<span style="color:#1a7f37;">✅ {{T "send.ok"}}</span>
 {{else}}<span style="color:#c0392b;">❌ {{.Err}}</span>{{end}}
 </li>
 {{end}}
 </ul>
 {{else if .Sent}}
-<p style="color:#1a7f37;">✅ Fatura enviada.</p>
+<p style="color:#1a7f37;">{{T "send.ok_invoice"}}</p>
 {{end}}

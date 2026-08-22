@@ -1,13 +1,13 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
-<h1 style="margin:0;">Recorrentes</h1>
-<a class="btn" href="/recorrentes/novo">Nova recorrência</a>
+<h1 style="margin:0;">{{T "recurring.title"}}</h1>
+<a class="btn" href="/recorrentes/novo">{{T "recurring.new"}}</a>
 </div>
 
 <div class="panel">
 <table>
 <thead>
-<tr><th>Cliente</th><th>Modelo</th><th>Frequência</th><th>Próximo envio</th><th>Último envio</th><th>Método</th><th>Ativa</th><th></th></tr>
+<tr><th>{{T "col.client"}}</th><th>{{T "col.template"}}</th><th>{{T "col.frequency"}}</th><th>{{T "col.next_send"}}</th><th>{{T "col.last_send"}}</th><th>{{T "col.method"}}</th><th>{{T "col.active"}}</th><th></th></tr>
 </thead>
 <tbody>
 {{if .Rows}}
@@ -19,20 +19,20 @@
 <td>{{dtbr .Next}}</td>
 <td>{{if .Last}}{{dtbr .Last}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td>{{.MethodLabel}}</td>
-<td>{{if .Active}}Sim{{else}}Não{{end}}</td>
+<td>{{if .Active}}{{T "common.yes"}}{{else}}{{T "common.no"}}{{end}}</td>
 <td>
 <form method="post" action="/recorrentes/{{.ID}}/excluir">
-<button type="submit" class="btn-danger">Excluir</button>
+<button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
 </form>
 </td>
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="8" class="muted">Nenhuma recorrência cadastrada.</td></tr>
+<tr><td colspan="8" class="muted">{{T "recurring.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>
 </div>
 
-<p class="hint">A cada disparo o agendador clona a fatura modelo como novo rascunho e envia pelo método escolhido.</p>
+<p class="hint">{{T "hint.recurring_list"}}</p>
 {{end}}

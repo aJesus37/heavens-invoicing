@@ -1,25 +1,25 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="{{.Lang}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} · Faturas</title>
+<title>{{.Title}} · {{T "app.name"}}</title>
 <link rel="stylesheet" href="/static/app.css">
 <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 <body>
 <header class="topbar">
-<nav aria-label="Navegação principal">
-<a href="/">Dashboard</a>
-<a href="/clientes">Clientes</a>
-<a href="/produtos">Produtos</a>
-<a href="/faturas">Faturas</a>
-<a href="/recorrentes">Recorrentes</a>
-<a href="/configuracoes">Configurações</a>
+<nav aria-label="{{T "nav.aria"}}">
+<a href="/">{{T "nav.dashboard"}}</a>
+<a href="/clientes">{{T "nav.clients"}}</a>
+<a href="/produtos">{{T "nav.products"}}</a>
+<a href="/faturas">{{T "nav.invoices"}}</a>
+<a href="/recorrentes">{{T "nav.recurring"}}</a>
+<a href="/configuracoes">{{T "nav.settings"}}</a>
 </nav>
 </header>
 <main>
-{{block "content" .Data}}<p>Nada para exibir.</p>{{end}}
+{{block "content" .Data}}<p>{{T "dash.empty_recent"}}</p>{{end}}
 </main>
 </body>
 </html>

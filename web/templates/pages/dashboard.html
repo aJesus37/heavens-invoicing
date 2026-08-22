@@ -1,11 +1,11 @@
 {{define "content"}}
-<h1>Dashboard</h1>
+<h1>{{T "dash.title"}}</h1>
 
-<h2>Faturas pendentes</h2>
+<h2>{{T "dash.pending"}}</h2>
 <div class="panel">
 <table>
 <thead>
-<tr><th>Nº</th><th>Cliente</th><th>Vencimento</th><th class="num">Total</th><th>Status</th></tr>
+<tr><th>{{T "col.number"}}</th><th>{{T "col.client"}}</th><th>{{T "col.due_date"}}</th><th class="num">{{T "col.total"}}</th><th>{{T "col.status"}}</th></tr>
 </thead>
 <tbody>
 {{if .Pending}}
@@ -19,17 +19,17 @@
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="5" class="muted">Nenhuma fatura pendente.</td></tr>
+<tr><td colspan="5" class="muted">{{T "dash.empty_pending"}}</td></tr>
 {{end}}
 </tbody>
 </table>
 </div>
 
-<h2>Recorrentes nos próximos 7 dias</h2>
+<h2>{{T "dash.upcoming"}}</h2>
 <div class="panel">
 <table>
 <thead>
-<tr><th>Cliente</th><th>Modelo</th><th>Frequência</th><th>Próximo envio</th><th>Método</th></tr>
+<tr><th>{{T "col.client"}}</th><th>{{T "col.template"}}</th><th>{{T "col.frequency"}}</th><th>{{T "col.next_send"}}</th><th>{{T "col.method"}}</th></tr>
 </thead>
 <tbody>
 {{if .Upcoming}}
@@ -43,17 +43,17 @@
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="5" class="muted">Nenhum envio recorrente nos próximos 7 dias.</td></tr>
+<tr><td colspan="5" class="muted">{{T "dash.empty_upcoming"}}</td></tr>
 {{end}}
 </tbody>
 </table>
 </div>
 
-<h2>Faturas recentes</h2>
+<h2>{{T "dash.recent"}}</h2>
 <div class="panel">
 <table>
 <thead>
-<tr><th>Nº</th><th>Cliente</th><th>Emissão</th><th class="num">Total</th><th>Status</th></tr>
+<tr><th>{{T "col.number"}}</th><th>{{T "col.client"}}</th><th>{{T "col.issue_date"}}</th><th class="num">{{T "col.total"}}</th><th>{{T "col.status"}}</th></tr>
 </thead>
 <tbody>
 {{if .Recent}}
@@ -67,7 +67,7 @@
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="5" class="muted">Nenhuma fatura criada ainda.</td></tr>
+<tr><td colspan="5" class="muted">{{T "dash.empty_recent"}}</td></tr>
 {{end}}
 </tbody>
 </table>

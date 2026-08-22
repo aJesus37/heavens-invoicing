@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -51,33 +52,35 @@ func formToClient(r *http.Request) (*model.Client, clientForm) {
 }
 
 func (h *Handlers) listClients(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	clients, err := h.repos.Clients.List(r.Context())
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "clientes.html", "Clientes", clients)
+	h.render.renderPage(w, http.StatusOK, "clientes.html", i18n.T(lang, "clients.title"), lang, clients)
 }
 
 func (h *Handlers) newClientForm(w http.ResponseWriter, r *http.Request) {
-	h.render.renderPage(w, http.StatusOK, "cliente_novo.html", "Novo cliente", clientForm{})
+	h.render.renderPage(w, http.StatusOK, "cliente_novo.html", i18n.T(h.lang(r), "clients.new"), h.lang(r), clientForm{})
 }
 
 func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	c, f := formToClient(r)
 	if strings.TrimSpace(c.Name) == "" {
-		f.Error = "O nome é obrigatório."
-		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", "Novo cliente", f)
+		f.Error = i18n.T(lang, "error.name_required")
+		h.render.renderPage(w, http.StatusBadRequest, "cliente_novo.html", i18n.T(lang, "clients.new"), lang, f)
 		return
 	}
 	c.Name = strings.TrimSpace(c.Name)
 	created, err := h.repos.Clients.Create(r.Context(), c)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/clientes/"+created.ID, http.StatusSeeOther)
@@ -89,46 +92,48 @@ type clientDetailData struct {
 }
 
 func (h *Handlers) showClient(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	client, err := h.repos.Clients.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	invoices, err := h.repos.Invoices.ListByClient(r.Context(), client.ID)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	rows, err := buildInvoiceRows(r.Context(), h, invoices)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
-	h.render.renderPage(w, http.StatusOK, "cliente_detalhe.html", client.Name, clientDetailData{
+	h.render.renderPage(w, http.StatusOK, "cliente_detalhe.html", client.Name, lang, clientDetailData{
 		Client:   client,
 		Invoices: rows,
 	})
 }
 
 func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
 	id := r.PathValue("id")
 	if _, err := h.repos.Clients.Get(r.Context(), id); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "formulário inválido", http.StatusBadRequest)
+		failBadRequest(w, lang)
 		return
 	}
 	c, _ := formToClient(r)
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
-		http.Error(w, "o nome é obrigatório", http.StatusBadRequest)
+		http.Error(w, i18n.T(lang, "error.name_required"), http.StatusBadRequest)
 		return
 	}
 	c.ID = id
 	if err := h.repos.Clients.Update(r.Context(), c); err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	http.Redirect(w, r, "/clientes/"+id, http.StatusSeeOther)

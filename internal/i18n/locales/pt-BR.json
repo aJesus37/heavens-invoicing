@@ -1,13 +1,13 @@
 {
   "app.name": "Faturas",
-
   "button.cancel": "Cancelar",
   "button.create_invoice": "Criar fatura",
   "button.create_recurring": "Criar recorrência",
   "button.save": "Salvar",
   "button.save_changes": "Salvar alterações",
   "button.save_settings": "Salvar configurações",
-
+  "common.no": "Não",
+  "common.yes": "Sim",
   "clients.detail.created_at": "Cadastrado em",
   "clients.detail.edit": "Editar dados",
   "clients.detail.empty_invoices": "Nenhuma fatura para este cliente.",
@@ -16,7 +16,6 @@
   "clients.empty": "Nenhum cliente cadastrado.",
   "clients.new": "Novo cliente",
   "clients.title": "Clientes",
-
   "col.active": "Ativa",
   "col.address": "Cidade/Endereço",
   "col.client": "Cliente",
@@ -38,7 +37,6 @@
   "col.template": "Modelo",
   "col.total": "Total",
   "col.unit_price": "Preço unitário",
-
   "dash.empty_pending": "Nenhuma fatura pendente.",
   "dash.empty_recent": "Nenhuma fatura criada ainda.",
   "dash.empty_upcoming": "Nenhum envio recorrente nos próximos 7 dias.",
@@ -46,7 +44,6 @@
   "dash.recent": "Faturas recentes",
   "dash.title": "Dashboard",
   "dash.upcoming": "Recorrentes nos próximos 7 dias",
-
   "detail.actions": "Ações",
   "detail.download_pdf": "Baixar PDF",
   "detail.mark_paid": "Marcar paga",
@@ -56,7 +53,6 @@
   "detail.send": "Enviar fatura",
   "detail.send_by": "Enviar por",
   "detail.title": "Fatura #%06d",
-
   "error.client_missing": "Cliente inexistente.",
   "error.client_required": "Selecione o cliente.",
   "error.due_before_issue": "O vencimento não pode ser anterior à emissão.",
@@ -85,7 +81,6 @@
   "error.template_missing": "Fatura modelo inexistente.",
   "error.template_required": "Selecione a fatura modelo (rascunho).",
   "error.unit_price": "Preço unitário: %s.",
-
   "field.admin_telegram_chat_id": "Chat ID admin no Telegram",
   "field.business_address": "Endereço do negócio",
   "field.business_name": "Nome do negócio",
@@ -97,34 +92,28 @@
   "field.smtp_port": "Porta SMTP",
   "field.smtp_user": "Usuário SMTP",
   "field.telegram_bot_token": "Token do bot Telegram",
-
   "filter.all": "Todas",
   "filter.cancelled": "Canceladas",
   "filter.draft": "Rascunho",
   "filter.overdue": "Vencidas",
   "filter.paid": "Pagas",
   "filter.sent": "Enviadas",
-
   "freq.monthly": "Mensal",
   "freq.quarterly": "Trimestral",
   "freq.weekly": "Semanal",
   "freq.yearly": "Anual",
-
   "group.business": "Negócio",
   "group.language": "Idioma",
   "group.payment": "Pagamento",
   "group.smtp": "E-mail (SMTP)",
   "group.telegram": "Telegram",
   "group.whatsapp": "WhatsApp",
-
   "hint.price_format": "Use vírgula como separador decimal, ex.: 1500,00.",
   "hint.recurring_list": "A cada disparo o agendador clona a fatura modelo como novo rascunho e envia pelo método escolhido.",
   "hint.recurring_template": "A cada disparo o agendador clona este rascunho com nova numeração e datas.",
-
   "invoices.new_title": "Nova fatura",
   "invoices.title": "Faturas",
   "items.title": "Itens",
-
   "label.address": "Endereço",
   "label.client": "Cliente",
   "label.delivery_method": "Método de entrega",
@@ -142,16 +131,13 @@
   "label.telegram_chat_id": "Chat ID do Telegram",
   "label.template_invoice": "Fatura modelo (rascunhos)",
   "label.unit_price_brl": "Preço unitário (R$)",
-
   "locale.en": "English",
   "locale.pt-BR": "Português",
-
   "method.all": "Todos",
   "method.email": "E-mail",
   "method.record": "Registro",
   "method.telegram": "Telegram",
   "method.whatsapp": "WhatsApp",
-
   "nav.aria": "Navegação principal",
   "nav.clients": "Clientes",
   "nav.dashboard": "Dashboard",
@@ -159,23 +145,20 @@
   "nav.products": "Produtos",
   "nav.recurring": "Recorrentes",
   "nav.settings": "Configurações",
-
   "products.active": "Produto ativo",
   "products.edit_title": "Editar produto",
   "products.empty": "Nenhum produto cadastrado.",
   "products.new": "Novo produto",
   "products.title": "Produtos",
-
+  "recurring.delete": "Excluir",
   "recurring.empty": "Nenhuma recorrência cadastrada.",
   "recurring.new": "Nova recorrência",
   "recurring.title": "Recorrentes",
-
   "send.already_paid": "fatura já está paga",
   "send.err_not_configured": "não configurado",
   "send.ok": "✅ enviado",
   "send.ok_invoice": "✅ Fatura enviada.",
   "send.record_failed": "falha ao atualizar status da fatura",
-
   "settings.hint_business": "Nome, endereço e PIX padrão aparecem no cabeçalho dos PDFs gerados.",
   "settings.hint_locale": "A alteração vale imediatamente.",
   "settings.hint_smtp_restart": "Alterações de SMTP entram em vigor após reiniciar o aplicativo.",
@@ -184,13 +167,11 @@
   "settings.saved": "Configurações salvas.",
   "settings.title": "Configurações",
   "settings.wa_loading": "Carregando estado do WhatsApp…",
-
   "status.cancelled": "cancelada",
   "status.draft": "rascunho",
   "status.overdue": "vencida",
   "status.paid": "paga",
   "status.sent": "enviada",
-
   "wa.connected": "✅ Conectado",
   "wa.disconnected": "Desconectado.",
   "wa.failed": "❌ Falha no pareamento: %s",
@@ -199,5 +180,8 @@
   "wa.pairing_wait": "Aguardando pareamento…",
   "wa.qr_alt": "QR Code de pareamento",
   "wa.retry": "Tentar novamente",
-  "wa.unavailable": "WhatsApp indisponível nesta instância."
+  "wa.unavailable": "WhatsApp indisponível nesta instância.",
+  "invoices.empty": "Nenhuma fatura encontrada.",
+  "wa.err_connection": "conexão: %s",
+  "wa.err_expired": "pareamento expirou"
 }

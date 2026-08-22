@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -29,21 +30,7 @@ type recurringRow struct {
 	Next           time.Time
 }
 
-var frequencyLabels = map[string]string{
-	"weekly":    "Semanal",
-	"monthly":   "Mensal",
-	"quarterly": "Trimestral",
-	"yearly":    "Anual",
-}
-
-var methodLabels = map[string]string{
-	"email":    "E-mail",
-	"whatsapp": "WhatsApp",
-	"telegram": "Telegram",
-	"all":      "Todos",
-}
-
-// Order used for select options and label lookups.
+// Order used for select options and i18n key lookups (freq.* / method.*).
 var (
 	frequencyOrder = []string{"weekly", "monthly", "quarterly", "yearly"}
 	methodOrder    = []string{"email", "whatsapp", "telegram", "all"}
@@ -87,32 +74,33 @@ type dashData struct {
 
 func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	lang := h.lang(r)
 
 	pending, err := h.repos.Invoices.ListByStatus(ctx, "sent", "overdue")
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	pendingRows, err := buildInvoiceRows(ctx, h, pending)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
 	all, err := h.repos.Invoices.List(ctx)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	recentRows, err := buildInvoiceRows(ctx, h, all[:min(5, len(all))])
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 
 	schedules, err := h.repos.Recurring.ListActive(ctx)
 	if err != nil {
-		writeRepoErr(w, err)
+		writeRepoErr(w, lang, err)
 		return
 	}
 	horizon := truncDay(time.Now()).AddDate(0, 0, 8)
@@ -131,13 +119,13 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 			ClientName:     h.clientName(ctx, s.ClientID),
 			TemplateID:     s.InvoiceTemplateID,
 			TemplateNumber: tplNumber,
-			FrequencyLabel: frequencyLabels[s.Frequency],
-			MethodLabel:    methodLabels[s.DeliveryMethod],
+			FrequencyLabel: i18n.T(lang, "freq."+s.Frequency),
+			MethodLabel:    i18n.T(lang, "method."+s.DeliveryMethod),
 			Next:           s.NextSendDate,
 		})
 	}
 
-	h.render.renderPage(w, http.StatusOK, "dashboard.html", "Dashboard", dashData{
+	h.render.renderPage(w, http.StatusOK, "dashboard.html", i18n.T(lang, "dash.title"), lang, dashData{
 		Pending:  pendingRows,
 		Upcoming: upcoming,
 		Recent:   recentRows,

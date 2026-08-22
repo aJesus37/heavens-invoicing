@@ -1,5 +1,5 @@
 {{define "content"}}
-<h1>Nova fatura</h1>
+<h1>{{T "invoices.new_title"}}</h1>
 
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
@@ -7,7 +7,7 @@
 <form method="post" action="/faturas/nova" class="stack">
 <div class="grid">
 <div>
-<label for="client_id">Cliente *</label>
+<label for="client_id">{{T "label.client"}} *</label>
 <select id="client_id" name="client_id" required>
 {{range .Clients}}
 <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
@@ -15,19 +15,19 @@
 </select>
 </div>
 <div>
-<label for="issue_date">Emissão *</label>
+<label for="issue_date">{{T "label.issue_date"}} *</label>
 <input type="date" id="issue_date" name="issue_date" value="{{.IssueDate}}" required>
 </div>
 <div>
-<label for="due_date">Vencimento *</label>
+<label for="due_date">{{T "label.due_date"}} *</label>
 <input type="date" id="due_date" name="due_date" value="{{.DueDate}}" required>
 </div>
 </div>
 
-<h2>Itens</h2>
+<h2>{{T "items.title"}}</h2>
 <table class="item-table">
 <thead>
-<tr><th style="min-width:18rem;">Descrição</th><th>Qtd</th><th>Preço unitário (R$)</th></tr>
+<tr><th style="min-width:18rem;">{{T "col.description"}}</th><th>{{T "col.qty"}}</th><th>{{T "label.unit_price_brl"}}</th></tr>
 </thead>
 <tbody>
 {{$d := .}}
@@ -43,18 +43,18 @@
 
 <div class="grid">
 <div class="wide">
-<label for="pix_key">Chave PIX (opcional — usa a padrão se vazio)</label>
+<label for="pix_key">{{T "label.pix_optional"}}</label>
 <input type="text" id="pix_key" name="pix_key" value="{{.PIXKey}}">
 </div>
 <div class="wide">
-<label for="notes">Observações</label>
+<label for="notes">{{T "label.notes"}}</label>
 <textarea id="notes" name="notes">{{.Notes}}</textarea>
 </div>
 </div>
 
 <div class="actions">
-<button type="submit">Criar fatura</button>
-<a class="btn btn-secondary" href="/faturas">Cancelar</a>
+<button type="submit">{{T "button.create_invoice"}}</button>
+<a class="btn btn-secondary" href="/faturas">{{T "button.cancel"}}</a>
 </div>
 </form>
 </div>
