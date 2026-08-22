@@ -61,6 +61,24 @@ func (h *Handlers) Mux() *http.ServeMux {
 	mux.HandleFunc("GET /clientes/{id}", h.showClient)
 	mux.HandleFunc("POST /clientes/{id}", h.updateClient)
 
+	mux.HandleFunc("GET /produtos", h.listProducts)
+	mux.HandleFunc("GET /produtos/novo", h.newProductForm)
+	mux.HandleFunc("POST /produtos/novo", h.createProduct)
+	mux.HandleFunc("GET /produtos/{id}/editar", h.editProductForm)
+	mux.HandleFunc("POST /produtos/{id}/editar", h.updateProduct)
+
+	mux.HandleFunc("GET /faturas", h.listInvoices)
+	mux.HandleFunc("GET /faturas/nova", h.newInvoiceForm)
+	mux.HandleFunc("POST /faturas/nova", h.createInvoice)
+	mux.HandleFunc("GET /faturas/{id}", h.showInvoice)
+	mux.HandleFunc("POST /faturas/{id}/enviar", h.sendInvoiceAction)
+	mux.HandleFunc("POST /faturas/{id}/marcar-paga", h.markInvoicePaidAction)
+
+	mux.HandleFunc("GET /recorrentes", h.listRecurring)
+	mux.HandleFunc("GET /recorrentes/novo", h.newRecurringForm)
+	mux.HandleFunc("POST /recorrentes/novo", h.createRecurring)
+	mux.HandleFunc("POST /recorrentes/{id}/excluir", h.deleteRecurring)
+
 	return mux
 }
 

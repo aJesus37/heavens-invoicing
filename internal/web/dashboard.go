@@ -43,6 +43,12 @@ var methodLabels = map[string]string{
 	"all":      "Todos",
 }
 
+// Order used for select options and label lookups.
+var (
+	frequencyOrder = []string{"weekly", "monthly", "quarterly", "yearly"}
+	methodOrder    = []string{"email", "whatsapp", "telegram", "all"}
+)
+
 func truncDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }

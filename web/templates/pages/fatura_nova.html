@@ -1,0 +1,61 @@
+{{define "content"}}
+<h1>Nova fatura</h1>
+
+{{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
+
+<div class="panel">
+<form method="post" action="/faturas/nova" class="stack">
+<div class="grid">
+<div>
+<label for="client_id">Cliente *</label>
+<select id="client_id" name="client_id" required>
+{{range .Clients}}
+<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+{{end}}
+</select>
+</div>
+<div>
+<label for="issue_date">Emissão *</label>
+<input type="date" id="issue_date" name="issue_date" value="{{.IssueDate}}" required>
+</div>
+<div>
+<label for="due_date">Vencimento *</label>
+<input type="date" id="due_date" name="due_date" value="{{.DueDate}}" required>
+</div>
+</div>
+
+<h2>Itens</h2>
+<table class="item-table">
+<thead>
+<tr><th style="min-width:18rem;">Descrição</th><th>Qtd</th><th>Preço unitário (R$)</th></tr>
+</thead>
+<tbody>
+{{$d := .}}
+{{range $i, $it := $d.Items}}
+<tr>
+<td><input type="text" name="item_desc_{{$i}}" value="{{$it.Description}}"></td>
+<td><input type="text" name="item_qty_{{$i}}" value="{{$it.Quantity}}" inputmode="numeric" placeholder="1"></td>
+<td><input type="text" name="item_price_{{$i}}" value="{{$it.UnitPrice}}" placeholder="0,00"></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+
+<div class="grid">
+<div class="wide">
+<label for="pix_key">Chave PIX (opcional — usa a padrão se vazio)</label>
+<input type="text" id="pix_key" name="pix_key" value="{{.PIXKey}}">
+</div>
+<div class="wide">
+<label for="notes">Observações</label>
+<textarea id="notes" name="notes">{{.Notes}}</textarea>
+</div>
+</div>
+
+<div class="actions">
+<button type="submit">Criar fatura</button>
+<a class="btn btn-secondary" href="/faturas">Cancelar</a>
+</div>
+</form>
+</div>
+{{end}}

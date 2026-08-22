@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jesus/invoice-app/internal/db"
 	"github.com/jesus/invoice-app/internal/deliver"
@@ -17,8 +18,9 @@ import (
 )
 
 // newTestEnv boots the real stack (sqlite repos + router + web handlers)
-// against a throwaway database and returns a live test server.
-func newTestEnv(t *testing.T) *httptest.Server {
+// against a throwaway database and returns a live test server along with
+// its repos for direct seeding.
+func newTestEnv(t *testing.T) (*httptest.Server, *repo.Repos) {
 	t.Helper()
 	conn, err := db.Open(filepath.Join(t.TempDir(), "t.db"))
 	if err != nil {
@@ -37,7 +39,11 @@ func newTestEnv(t *testing.T) *httptest.Server {
 	ts.Client().CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
-	return ts
+	return ts, repos
+}
+
+func dateUTC(y int, m time.Month, d int) time.Time {
+	return time.Date(y, m, d, 12, 0, 0, 0, time.UTC)
 }
 
 func get(t *testing.T, ts *httptest.Server, path string) (int, string) {
@@ -63,7 +69,7 @@ func postForm(t *testing.T, ts *httptest.Server, path string, form url.Values) (
 }
 
 func TestDashboardRenders(t *testing.T) {
-	ts := newTestEnv(t)
+	ts, _ := newTestEnv(t)
 	status, body := get(t, ts, "/")
 	if status != http.StatusOK {
 		t.Fatalf("got %d want 200", status)
@@ -76,7 +82,7 @@ func TestDashboardRenders(t *testing.T) {
 }
 
 func TestClientCreateFlowEndToEnd(t *testing.T) {
-	ts := newTestEnv(t)
+	ts, _ := newTestEnv(t)
 
 	form := url.Values{
 		"name":    {"Acme Ltda"},
@@ -112,7 +118,7 @@ func TestClientCreateFlowEndToEnd(t *testing.T) {
 }
 
 func TestClientUpdateFlow(t *testing.T) {
-	ts := newTestEnv(t)
+	ts, _ := newTestEnv(t)
 
 	form := url.Values{"name": {"Beta"}}
 	resp, _ := postForm(t, ts, "/clientes/novo", form)
@@ -132,7 +138,7 @@ func TestClientUpdateFlow(t *testing.T) {
 }
 
 func TestClientDetailNotFound(t *testing.T) {
-	ts := newTestEnv(t)
+	ts, _ := newTestEnv(t)
 	status, _ := get(t, ts, "/clientes/naoexiste")
 	if status != http.StatusNotFound {
 		t.Fatalf("got %d want 404", status)

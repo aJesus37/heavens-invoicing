@@ -1,0 +1,29 @@
+{{define "content"}}
+<div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
+<h1 style="margin:0;">Produtos</h1>
+<a class="btn" href="/produtos/novo">Novo produto</a>
+</div>
+
+<div class="panel">
+<table>
+<thead>
+<tr><th>Nome</th><th>Descrição</th><th class="num">Preço unitário</th><th>Moeda</th><th>Ativo</th></tr>
+</thead>
+<tbody>
+{{if .}}
+{{range .}}
+<tr>
+<td><a href="/produtos/{{.ID}}/editar">{{.Name}}</a></td>
+<td>{{with .Description}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="num">{{brl .UnitPrice}}</td>
+<td>{{.Currency}}</td>
+<td>{{if .Active}}Sim{{else}}Não{{end}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="5" class="muted">Nenhum produto cadastrado.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}

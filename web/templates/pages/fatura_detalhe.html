@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
+<h1 style="margin:0;">Fatura #{{printf "%06d" .Inv.Number}} {{template "statusBadge" .Inv}}</h1>
+<a class="btn btn-secondary" href="/api/invoices/{{.Inv.ID}}/pdf">Baixar PDF</a>
+</div>
+
+<div class="panel">
+<dl class="kv">
+<div><dt>Cliente</dt><dd><a href="/clientes/{{.Client.ID}}">{{.Client.Name}}</a></dd></div>
+<div><dt>Emissão</dt><dd>{{dtbr .Inv.IssueDate}}</dd></div>
+<div><dt>Vencimento</dt><dd>{{dtbr .Inv.DueDate}}</dd></div>
+{{with .EffectivePix}}
+<div><dt>Chave PIX</dt><dd>{{.}}</dd></div>
+{{end}}
+</dl>
+</div>
+
+<div class="panel">
+<table>
+<thead>
+<tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Preço unit.</th><th class="num">Total</th></tr>
+</thead>
+<tbody>
+{{range .Inv.Items}}
+<tr>
+<td>{{.Description}}</td>
+<td class="num">{{.Quantity}}</td>
+<td class="num">{{brl .UnitPrice}}</td>
+<td class="num">{{brl .Total}}</td>
+</tr>
+{{end}}
+</tbody>
+<tfoot>
+<tr><td colspan="3" class="num"><strong>Total</strong></td><td class="num"><strong>{{brl .Inv.Total}}</strong></td></tr>
+</tfoot>
+</table>
+{{with .Inv.Notes}}<p class="muted">Observações: {{.}}</p>{{end}}
+</div>
+
+<div class="panel">
+<h2 style="margin-top:0;">Ações</h2>
+
+<label for="send-method">Enviar por</label>
+<div class="actions">
+<select id="send-method" name="method" style="max-width:12rem;">
+{{range .SendMethods}}
+<option value="{{.Value}}">{{.Label}}</option>
+{{end}}
+</select>
+<button hx-post="/faturas/{{.Inv.ID}}/enviar"
+        hx-include="#send-method"
+        hx-target="#send-resultados"
+        hx-swap="innerHTML"
+        {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>Enviar fatura</button>
+<form method="post" action="/faturas/{{.Inv.ID}}/marcar-paga" style="display:inline;">
+<button type="submit">Marcar paga</button>
+</form>
+</div>
+<div id="send-resultados" aria-live="polite"></div>
+</div>
+{{end}}

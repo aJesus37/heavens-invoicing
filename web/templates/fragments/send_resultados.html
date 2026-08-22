@@ -1,0 +1,13 @@
+{{if .Results}}
+<ul>
+{{range .Results}}
+<li>
+<strong>{{.Label}}</strong>:
+{{if .OK}}<span style="color:#1a7f37;">✅ enviado</span>
+{{else}}<span style="color:#c0392b;">❌ {{.Err}}</span>{{end}}
+</li>
+{{end}}
+</ul>
+{{else if .Sent}}
+<p style="color:#1a7f37;">✅ Fatura enviada.</p>
+{{end}}

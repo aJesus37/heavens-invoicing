@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
+<h1 style="margin:0;">Faturas</h1>
+<a class="btn" href="/faturas/nova">Nova fatura</a>
+</div>
+
+<div class="tabs">
+{{range .Filters}}
+<a href="{{if .Key}}/faturas?status={{.Key}}{{else}}/faturas{{end}}" {{if .Active}}class="active"{{end}}>{{.Label}}</a>
+{{end}}
+</div>
+
+<div class="panel">
+<table>
+<thead>
+<tr><th>Nº</th><th>Cliente</th><th>Emissão</th><th>Vencimento</th><th class="num">Total</th><th>Status</th></tr>
+</thead>
+<tbody>
+{{if .Rows}}
+{{range .Rows}}
+<tr>
+<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td>{{.ClientName}}</td>
+<td>{{dtbr .Issue}}</td>
+<td>{{dtbr .Due}}</td>
+<td class="num">{{brl .Total}}</td>
+<td>{{template "statusBadge" .}}</td>
+</tr>
+{{end}}
+{{else}}
+<tr><td colspan="6" class="muted">Nenhuma fatura encontrada.</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
