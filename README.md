@@ -32,7 +32,7 @@ go run .
 task test
 ```
 
-Open <http://localhost:8010>. On first run there is no admin password, so
+Open <http://localhost:8080>. On first run there is no admin password, so
 `/login` shows a **set admin password** form. After setting it, all routes (web
 and `/api`) require a session.
 
@@ -93,7 +93,7 @@ PIX, locale, and sender info are all stored via the Settings UI.
 ## Dev workflow
 
 ```sh
-task list        # show all tasks
+task --list      # show all tasks
 task build       # go build -> ./bin/invoice-app
 task test        # go test ./...
 task test-race   # go test -race ./...
