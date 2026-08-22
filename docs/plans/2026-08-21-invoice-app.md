@@ -545,3 +545,47 @@ Commit: `feat: web ui`.
 1. `go vet ./... && go test ./...` clean.
 2. Deploy to homelab box (192.168.10.16): single binary + systemd unit or docker-compose (golang image, volume `/data`). Suggest port 8000 alongside existing services, or move Invoice Ninja off first.
 3. Link WhatsApp via settings QR; configure SMTP + Telegram token; create one recurring schedule; observe one full cycle manually (set `next_send_date` yesterday to force immediate fire).
+
+---
+
+# Round 2 Plan (2026-08-22): i18n + Auth + Follow-ups + DevX
+
+User decisions: FULL i18n (not just English swap); SESSION login page auth.
+
+## R2 Task 1: i18n foundation + web UI translation
+
+- `internal/i18n`: embedded locale files (`locales/en.toml` or .json, `pt-BR`), `T(ctx/lang, key, args...)` helper; keys namespaced (`nav.*`, `dash.*`, `clients.*`...)
+- Settings key `locale` (values `en` | `pt-BR`, default `en`) read by web handlers; language selector in settings page
+- Translate ALL web UI strings (layout, nav, dashboard, clients, products, faturas→invoices pages, recurring, settings, flash/validation messages). Routes stay as-is (no URL churn).
+- Tests: template rendering asserts translated markers under both locales; unknown locale falls back to en.
+
+## R2 Task 2: Per-client language for client-facing artifacts
+
+- Migration 002: `ALTER TABLE clients ADD COLUMN language TEXT NOT NULL DEFAULT 'pt-BR'` (+ sessions table here too, see R2 Task 3 — one migration file)
+- Client create/edit forms get language select (pt-BR | en)
+- PDF: `RenderInvoice` gains lang param; translate labels (Fatura→Invoice etc.) via i18n pkg; tests assert marker strings per language
+- Emails + WhatsApp reminders/captions TO CLIENTS use client.language; admin notifications + bot command REPLIES use admin locale setting
+- Bot: `/idioma en|pt` NOT added (YAGNI) — admin changes locale in settings
+
+## R2 Task 3: Session auth
+
+- Migration 002 (shared): `sessions(token_hash TEXT PK, created_at, expires_at)`
+- Settings: `admin_password_hash` (bcrypt)
+- Flow: middleware requires valid session for everything EXCEPT /login, /healthz, static. First run (no hash set): /login shows "Set admin password" form instead. POST /login: verify bcrypt → create session row (random 32B token, cookie httpOnly+sameSite=lax, 7d expiry), store SHA256 of token. POST /logout deletes row + clears cookie.
+- CSRF: double-submit token bound to session for ALL state-changing requests (web forms + htmx endpoints + JSON API writes). 403 without match.
+- Login rate-limit: naive per-IP counter (5 fails → 1min lockout), in-memory OK.
+- Tests: unauthenticated redirects/401s, login success/fail, logout revokes, CSRF rejection, first-run password setup, lockout.
+
+## R2 Task 4: Follow-ups — schedule pause + invoice cancel
+
+- Recurring: PUT /api/recurring/{id} {active:bool}; UI toggle button (Pausar/Retomar); scheduler already respects active flag
+- Cancel: POST /api/invoices/{id}/cancel — allowed from draft|sent|overdue only (paid → 409); UI button with confirm; makes existing "cancelled" filter tab live
+- Tests both paths API + UI + router interplay (cancel blocks send — reuse paid guard pattern)
+
+## R2 Task 5: DevX — Taskfile + compose + README
+
+- `Taskfile.yml`: build (static CGO_ENABLED=0), test (incl -race), vet+fmt check, lint pass, run, docker-build, deploy (scp + docker rebuild on 192.168.10.16), seed-dev-data (optional tiny sqlite seeder for local testing)
+- `Dockerfile` (multi-stage golang→scratch, replaces hand-built flow), `docker-compose.yml` (prod-shaped: port 8010, named volume, restart policy), `.dockerignore`
+- `README.md`: what it is, quickstart (task run), config reference (all settings keys + env PORT), delivery channels setup (SMTP/Telegram/WhatsApp pairing), deployment (compose + the 192.168.10.16 recipe), architecture overview pointer to docs/plans
+
+## R2 Final: full verification + redeploy to homelab
