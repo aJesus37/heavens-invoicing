@@ -159,6 +159,16 @@ func (s *Scheduler) tickAndLog(ctx context.Context) {
 
 // --- job 1: recurring fire ---
 
+// localDay reinterprets a stored timestamp as a calendar day in the
+// scheduler clock's location. Dates arrive as UTC midnight (the API parses
+// user-entered YYYY-MM-DD with time.Parse) while today is local midnight;
+// comparing the raw instants shifts schedules up to a whole day on non-UTC
+// hosts, so every day-granularity comparison normalizes first (same rule
+// as AdminBot's /upcoming window).
+func localDay(t time.Time, loc *time.Location) time.Time {
+	return startOfDay(t.In(loc))
+}
+
 func (s *Scheduler) fireDueSchedules(ctx context.Context, today time.Time) error {
 	schedules, err := s.recurring.ListActive(ctx)
 	if err != nil {
@@ -166,7 +176,7 @@ func (s *Scheduler) fireDueSchedules(ctx context.Context, today time.Time) error
 	}
 	var errs []error
 	for _, sched := range schedules {
-		if startOfDay(sched.NextSendDate).After(today) {
+		if localDay(sched.NextSendDate, today.Location()).After(today) {
 			continue // not due yet
 		}
 		if s.attemptedToday(sched.ID, today) {
@@ -280,7 +290,7 @@ func (s *Scheduler) processOverdue(ctx context.Context, today time.Time) error {
 	var candidates []candidate
 	candidateIDs := make(map[string]bool)
 	for _, inv := range invoices {
-		due := startOfDay(inv.DueDate)
+		due := localDay(inv.DueDate, today.Location())
 		if !due.Before(cutoff) {
 			continue
 		}

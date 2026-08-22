@@ -443,6 +443,53 @@ func TestTickLeavesFutureScheduleUntouched(t *testing.T) {
 	}
 }
 
+// The API persists user-entered dates as UTC midnight; on hosts away from
+// UTC the scheduler must still treat them as their local calendar day.
+func TestTickFiresUTCStoredScheduleOnLocalDay(t *testing.T) {
+	loc := time.FixedZone("UTC+3", 3*3600)
+	now := time.Date(2026, 4, 1, 12, 0, 0, 0, loc) // local noon of the intended day
+	h := newHarness(now)
+	tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+	h.recur.active = []*model.RecurringSchedule{{
+		ID:                "sched-tz",
+		ClientID:          testClient.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		// Exactly what time.Parse("2006-01-02") stores for 2026-04-01.
+		NextSendDate:   time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		DeliveryMethod: "email",
+	}}
+
+	if err := h.sched.Tick(context.Background()); err != nil {
+		t.Fatalf("tick returned error: %v", err)
+	}
+	if len(h.invoices.clones) != 1 {
+		t.Fatalf("clones = %d, want 1: UTC-stored date must fire during its local day", len(h.invoices.clones))
+	}
+	if len(h.recur.updateCalls) != 1 {
+		t.Fatalf("updates = %d, want 1", len(h.recur.updateCalls))
+	}
+	wantNext := time.Date(2026, 5, 1, 0, 0, 0, 0, loc)
+	if got := h.recur.updateCalls[0].NextSendDate; !got.Equal(wantNext) {
+		t.Fatalf("next_send_date = %s, want %s (local midnight)", got, wantNext)
+	}
+}
+
+func TestOverdueDaysCountedInClockLocation(t *testing.T) {
+	loc := time.FixedZone("UTC+3", 3*3600)
+	now := time.Date(2026, 4, 11, 12, 0, 0, 0, loc)
+	h := newHarness(now)
+	seedOverdueInvoice(h, time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)) // stored like the API does
+
+	if err := h.sched.Tick(context.Background()); err != nil {
+		t.Fatalf("tick returned error: %v", err)
+	}
+	texts := h.notifier.snapshot()
+	if len(texts) != 1 || !strings.Contains(texts[0], "venceu há 10 dias") {
+		t.Fatalf("notifications = %+v, want ask counting 10 overdue days in clock location", texts)
+	}
+}
+
 func TestTickInactiveSchedulesIgnored(t *testing.T) {
 	h := newHarness(day(testNow))
 	h.recur.active = nil // ListActive returns only active rows

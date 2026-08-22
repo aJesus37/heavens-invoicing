@@ -73,28 +73,43 @@ func tgNotifier(c *telegram.Client, adminChatID string) deliver.Notifier {
 	return telegram.NewNotifier(c, adminChatID)
 }
 
+// Admin bot restart pacing; variables so tests can shrink them.
+var (
+	adminBotInitialBackoff = 30 * time.Second
+	adminBotMaxBackoff     = 5 * time.Minute
+)
+
+// nextBackoff picks the restart delay after a failed Run that lasted ran.
+// A run that outlived the max backoff was healthy for a long stretch, so
+// escalation resets to base instead of punishing a fresh failure with the
+// previous stale delay.
+func nextBackoff(previous, ran, base, max time.Duration) time.Duration {
+	if ran >= max {
+		return base
+	}
+	return min(previous*2, max)
+}
+
 // runAdminBot keeps the polling loop alive for the process lifetime:
 // AdminBot.Run exits permanently on its first polling error, so wrap it
 // with restarts on a growing backoff (30s doubling up to a 5min cap) until
 // the context is canceled.
 func runAdminBot(ctx context.Context, bot *telegram.AdminBot) {
-	const (
-		initialBackoff = 30 * time.Second
-		maxBackoff     = 5 * time.Minute
-	)
-	backoff := initialBackoff
+	base, max := adminBotInitialBackoff, adminBotMaxBackoff
+	backoff := base
 	for {
+		started := time.Now()
 		err := bot.Run(ctx)
 		if ctx.Err() != nil {
 			return
 		}
+		backoff = nextBackoff(backoff, time.Since(started), base, max)
 		log.Printf("admin bot stopped (%v); restarting in %s", err, backoff)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
 		}
-		backoff = min(backoff*2, maxBackoff)
 	}
 }
 
