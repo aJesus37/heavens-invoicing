@@ -214,8 +214,9 @@ func (s *Scheduler) fireDueSchedules(ctx context.Context, today time.Time) error
 }
 
 // fireSchedule clones the schedule's template invoice, renders it and hands
-// it to the Router. Only a confirmed delivery advances the schedule; any
-// earlier step fails with the clone left behind as a draft for inspection.
+// it to the Router. Only a confirmed delivery (at least one channel succeeded)
+// advances the schedule; if every channel fails the clone is rolled back so a
+// permanently-failing schedule does not accumulate orphan drafts across days.
 func (s *Scheduler) fireSchedule(ctx context.Context, sched *model.RecurringSchedule, today time.Time) error {
 	next, ok := nextSendDate(today, sched.Frequency)
 	if !ok {
