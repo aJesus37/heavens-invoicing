@@ -79,3 +79,35 @@ func TestClientsValidationAndErrors(t *testing.T) {
 		t.Fatalf("malformed json: status = %d, want 400", rec.Code)
 	}
 }
+
+func TestClientsForgedIdentityIgnored(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	rec := do(t, h, "POST", "/api/clients", map[string]any{
+		"name": "Forjado",
+		"id":   "attacker-chosen-id",
+	})
+	assertStatus(t, rec, 201, "create with forged id")
+	created := decode[model.Client](t, rec)
+	if created.ID == "attacker-chosen-id" || created.ID == "" {
+		t.Fatalf("server must assign the id, got %q", created.ID)
+	}
+}
+
+func TestClientUpdateEchoesStoredTimestamps(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	rec := do(t, h, "POST", "/api/clients", map[string]any{"name": "Acme"})
+	assertStatus(t, rec, 201, "create")
+	created := decode[model.Client](t, rec)
+
+	updated := decode[model.Client](t, do(t, h, "PUT", "/api/clients/"+created.ID, map[string]any{"name": "Acme SA"}))
+	if updated.CreatedAt.IsZero() || !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("update response CreatedAt = %v, want stored %v", updated.CreatedAt, created.CreatedAt)
+	}
+	if updated.UpdatedAt.Before(created.UpdatedAt) {
+		t.Fatalf("UpdatedAt went backwards: %v -> %v", created.UpdatedAt, updated.UpdatedAt)
+	}
+}

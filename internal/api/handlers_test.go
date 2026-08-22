@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -49,6 +50,7 @@ func (n *recordingNotifier) Notify(_ context.Context, text string) error {
 type testEnv struct {
 	handler  http.Handler
 	repos    *repo.Repos
+	conn     *sql.DB // exposed so tests can break the database
 	email    *countingChannel
 	wa       *countingChannel
 	tg       *countingChannel
@@ -64,6 +66,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	t.Cleanup(func() { conn.Close() })
 
 	env := &testEnv{
+		conn:     conn,
 		repos:    repo.New(conn),
 		email:    &countingChannel{name: "email"},
 		wa:       &countingChannel{name: "whatsapp"},

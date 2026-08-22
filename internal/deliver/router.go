@@ -147,30 +147,38 @@ func (r *Router) run(ctx context.Context, c model.Client, inv model.Invoice, tar
 		}
 	}
 
-	r.notifyOutcome(ctx, inv.Number, c.Name, kind, results, ok)
-
+	// The status flip happens before notifying so the admin summary
+	// reflects the invoice's final persisted state.
+	var statusErr error
 	if updateStatus && len(ok) > 0 {
 		if err := r.invoices.UpdateStatus(ctx, inv.ID, "sent"); err != nil {
-			return results, fmt.Errorf("mark invoice #%06d sent: %w", inv.Number, err)
+			statusErr = fmt.Errorf("mark invoice #%06d sent: %w", inv.Number, err)
 		}
 	}
-	return results, nil
+
+	r.notifyOutcome(ctx, inv.Number, c.Name, kind, results, ok, statusErr)
+
+	return results, statusErr
 }
 
 // notifyOutcome sends the admin summary; notification failures are ignored
 // on purpose so a broken admin channel cannot mask or alter delivery
 // results.
-func (r *Router) notifyOutcome(ctx context.Context, number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string) {
+func (r *Router) notifyOutcome(ctx context.Context, number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string, statusErr error) {
 	if r.notifier == nil {
 		return
 	}
-	_ = r.notifier.Notify(ctx, outcomeText(number, clientName, kind, results, ok))
+	_ = r.notifier.Notify(ctx, outcomeText(number, clientName, kind, results, ok, statusErr))
 }
 
-func outcomeText(number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string) string {
+func outcomeText(number int64, clientName string, kind summaryKind, results []ChannelResult, ok []string, statusErr error) string {
 	numbered := fmt.Sprintf("%s #%06d", kind.noun, number)
 	if len(ok) > 0 {
-		return numbered + fmt.Sprintf(" %s para %s via %s", kind.sent, clientName, strings.Join(ok, ", "))
+		text := numbered + fmt.Sprintf(" %s para %s via %s", kind.sent, clientName, strings.Join(ok, ", "))
+		if statusErr != nil {
+			text += ", mas falha ao marcar como enviada: " + statusErr.Error()
+		}
+		return text
 	}
 	numbered += fmt.Sprintf(" para %s falhou", clientName)
 	if len(results) == 0 {

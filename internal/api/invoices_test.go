@@ -107,6 +107,8 @@ func TestInvoicesCreateValidation(t *testing.T) {
 		{"bad issue date", map[string]any{"client_id": client.ID, "issue_date": "01/08/2026", "due_date": "2026-09-01", "items": []any{map[string]any{"description": "x", "quantity": 1}}}},
 		{"item without description", map[string]any{"client_id": client.ID, "issue_date": "2026-08-01", "due_date": "2026-09-01", "items": []any{map[string]any{"quantity": 1}}}},
 		{"item zero quantity", map[string]any{"client_id": client.ID, "issue_date": "2026-08-01", "due_date": "2026-09-01", "items": []any{map[string]any{"description": "x", "quantity": 0}}}},
+		{"item negative unit price", map[string]any{"client_id": client.ID, "issue_date": "2026-08-01", "due_date": "2026-09-01", "items": []any{map[string]any{"description": "x", "quantity": 1, "unit_price": -100}}}},
+		{"due date before issue date", map[string]any{"client_id": client.ID, "issue_date": "2026-09-10", "due_date": "2026-09-01", "items": []any{map[string]any{"description": "x", "quantity": 1}}}},
 		{"invalid status", map[string]any{"client_id": client.ID, "status": "weird", "issue_date": "2026-08-01", "due_date": "2026-09-01", "items": []any{map[string]any{"description": "x", "quantity": 1}}}},
 	}
 	for _, tt := range tests {
@@ -115,6 +117,27 @@ func TestInvoicesCreateValidation(t *testing.T) {
 			assertStatus(t, rec, 400, tt.name)
 		})
 	}
+}
+
+func TestInvoiceCreateDBFailureIs500Not400(t *testing.T) {
+	env := newTestEnv(t)
+	env.conn.Close() // any repo access now fails with a non-ErrNotFound error
+
+	rec := do(t, env.handler, "POST", "/api/invoices", map[string]any{
+		"client_id":  "whatever",
+		"issue_date": "2026-08-01",
+		"due_date":   "2026-09-01",
+		"items":      []any{map[string]any{"description": "x", "quantity": 1, "unit_price": 100}},
+	})
+	assertStatus(t, rec, 500, "db failure on create invoice")
+
+	rec = do(t, env.handler, "POST", "/api/recurring", map[string]any{
+		"client_id":           "whatever",
+		"invoice_template_id": "whatever",
+		"frequency":           "monthly",
+		"delivery_method":     "all",
+	})
+	assertStatus(t, rec, 500, "db failure on create recurring")
 }
 
 func TestInvoicesListFilters(t *testing.T) {

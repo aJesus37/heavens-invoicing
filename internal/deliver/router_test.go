@@ -323,4 +323,13 @@ func TestRouterStatusUpdateFailureSurfaces(t *testing.T) {
 	if len(results) != 1 || results[0].Err != nil {
 		t.Fatalf("delivery itself succeeded, results = %+v", results)
 	}
+	// The admin summary must mention the mark-as-sent failure.
+	if len(f.notifier.texts) != 1 {
+		t.Fatalf("notify texts = %v, want one summary", f.notifier.texts)
+	}
+	for _, want := range []string{"enviada", "marcar como enviada", "db locked"} {
+		if !strings.Contains(f.notifier.texts[0], want) {
+			t.Fatalf("notify %q missing %q", f.notifier.texts[0], want)
+		}
+	}
 }

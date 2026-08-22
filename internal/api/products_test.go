@@ -56,6 +56,7 @@ func TestProductsValidationAndErrors(t *testing.T) {
 		want   int
 	}{
 		{"create without name", "POST", "/api/products", map[string]any{"unit_price": 100}, 400},
+		{"create negative price", "POST", "/api/products", map[string]any{"name": "X", "unit_price": -1}, 400},
 		{"get unknown", "GET", "/api/products/nope", nil, 404},
 		{"update unknown", "PUT", "/api/products/nope", map[string]any{"name": "X"}, 404},
 		{"delete unknown", "DELETE", "/api/products/nope", nil, 404},
@@ -69,5 +70,62 @@ func TestProductsValidationAndErrors(t *testing.T) {
 
 	if rec := doRaw(t, h, "POST", "/api/products", "{oops"); rec.Code != 400 {
 		t.Fatalf("malformed json: status = %d, want 400", rec.Code)
+	}
+}
+
+func TestProductsUpdateRejectsNegativePrice(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	rec := do(t, h, "POST", "/api/products", map[string]any{"name": "X", "unit_price": 500})
+	assertStatus(t, rec, 201, "seed product")
+	id := decode[model.Product](t, rec).ID
+
+	if rec := do(t, h, "PUT", "/api/products/"+id, map[string]any{"name": "X", "unit_price": -5}); rec.Code != 400 {
+		t.Fatalf("negative update: status = %d, want 400", rec.Code)
+	}
+
+	got := decode[model.Product](t, do(t, h, "GET", "/api/products/"+id, nil))
+	if got.UnitPrice != 500 {
+		t.Fatalf("price changed despite rejected update: %d", got.UnitPrice)
+	}
+}
+
+func TestProductsForgedIdentityIgnored(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	rec := do(t, h, "POST", "/api/products", map[string]any{
+		"name":       "Forjado",
+		"unit_price": 100,
+		"id":         "attacker-chosen-id",
+	})
+	assertStatus(t, rec, 201, "create with forged id")
+	created := decode[model.Product](t, rec)
+	if created.ID == "attacker-chosen-id" || created.ID == "" {
+		t.Fatalf("server must assign the id, got %q", created.ID)
+	}
+}
+
+func TestProductUpdateEchoesStoredTimestamps(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+
+	rec := do(t, h, "POST", "/api/products", map[string]any{"name": "X", "unit_price": 100})
+	assertStatus(t, rec, 201, "create")
+	created := decode[model.Product](t, rec)
+
+	updated := decode[model.Product](t, do(t, h, "PUT", "/api/products/"+created.ID, map[string]any{
+		"name":       "Y",
+		"unit_price": 200,
+	}))
+	if updated.CreatedAt.IsZero() {
+		t.Fatal("update response lost CreatedAt")
+	}
+	if !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("CreatedAt changed: %v -> %v", created.CreatedAt, updated.CreatedAt)
+	}
+	if updated.UpdatedAt.Before(created.UpdatedAt) {
+		t.Fatalf("UpdatedAt went backwards: %v -> %v", created.UpdatedAt, updated.UpdatedAt)
 	}
 }

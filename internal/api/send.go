@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"log"
 	"net/http"
 
 	"github.com/jesus/invoice-app/internal/deliver"
@@ -56,7 +57,10 @@ func (a *api) sendInvoice(w http.ResponseWriter, r *http.Request) {
 
 	resp := toSendResponse(results)
 	if err != nil {
-		resp.Error = err.Error()
+		// err is a persistence failure after delivery; details stay in the
+		// server log, not the response.
+		log.Printf("send invoice %s: %v", inv.ID, err)
+		resp.Error = "internal error"
 		writeJSON(w, http.StatusInternalServerError, resp)
 		return
 	}

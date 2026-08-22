@@ -1,11 +1,13 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"slices"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/model"
+	"github.com/jesus/invoice-app/internal/repo"
 )
 
 type recurringPayload struct {
@@ -91,11 +93,19 @@ func (a *api) createRecurring(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := a.repos.Clients.Get(r.Context(), payload.ClientID); err != nil {
-		writeError(w, http.StatusBadRequest, "unknown client_id")
+		if errors.Is(err, repo.ErrNotFound) {
+			writeUnknownRef(w, "client_id")
+			return
+		}
+		writeRepoErr(w, err)
 		return
 	}
 	if _, err := a.repos.Invoices.Get(r.Context(), payload.InvoiceTemplateID); err != nil {
-		writeError(w, http.StatusBadRequest, "unknown invoice_template_id")
+		if errors.Is(err, repo.ErrNotFound) {
+			writeUnknownRef(w, "invoice_template_id")
+			return
+		}
+		writeRepoErr(w, err)
 		return
 	}
 

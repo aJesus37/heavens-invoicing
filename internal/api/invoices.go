@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
+	"github.com/jesus/invoice-app/internal/repo"
 )
 
 const dateLayout = "2006-01-02"
@@ -157,6 +159,9 @@ func validateInvoicePayload(p *invoicePayload) (string, bool) {
 		if it.Quantity < 1 {
 			return fmt.Sprintf("items[%d]: quantity must be >= 1", i), false
 		}
+		if it.UnitPrice < 0 {
+			return fmt.Sprintf("items[%d]: unit_price must be >= 0", i), false
+		}
 	}
 	return "", true
 }
@@ -170,6 +175,11 @@ func parseDate(w http.ResponseWriter, field, value string) (time.Time, bool) {
 	return t, true
 }
 
+// writeUnknownRef reports a payload reference to a nonexistent entity.
+func writeUnknownRef(w http.ResponseWriter, what string) {
+	writeError(w, http.StatusBadRequest, "unknown "+what)
+}
+
 func (a *api) createInvoice(w http.ResponseWriter, r *http.Request) {
 	var payload invoicePayload
 	if !decodeJSON(w, r, &payload) {
@@ -179,16 +189,24 @@ func (a *api) createInvoice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
-	if _, err := a.repos.Clients.Get(r.Context(), payload.ClientID); err != nil {
-		writeError(w, http.StatusBadRequest, "unknown client_id")
-		return
-	}
 	issueDate, ok := parseDate(w, "issue_date", payload.IssueDate)
 	if !ok {
 		return
 	}
 	dueDate, ok := parseDate(w, "due_date", payload.DueDate)
 	if !ok {
+		return
+	}
+	if dueDate.Before(issueDate) {
+		writeError(w, http.StatusBadRequest, "due_date must be on or after issue_date")
+		return
+	}
+	if _, err := a.repos.Clients.Get(r.Context(), payload.ClientID); err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			writeUnknownRef(w, "client_id")
+			return
+		}
+		writeRepoErr(w, err)
 		return
 	}
 

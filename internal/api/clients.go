@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jesus/invoice-app/internal/model"
 )
@@ -25,6 +26,10 @@ func (a *api) createClient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	// Caller-supplied identity and timestamps are never honored.
+	c.ID = ""
+	c.CreatedAt = time.Time{}
+	c.UpdatedAt = time.Time{}
 	created, err := a.repos.Clients.Create(r.Context(), &c)
 	if err != nil {
 		writeRepoErr(w, err)
@@ -56,7 +61,13 @@ func (a *api) updateClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, &c)
+	// Re-fetch so the response carries the stored timestamps.
+	stored, err := a.repos.Clients.Get(r.Context(), c.ID)
+	if err != nil {
+		writeRepoErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, stored)
 }
 
 func (a *api) deleteClient(w http.ResponseWriter, r *http.Request) {
