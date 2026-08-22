@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -57,6 +58,80 @@ func TestRenderInvoiceProducesPDF(t *testing.T) {
 	}
 	if buf.Len() <= 1000 {
 		t.Errorf("PDF too small: %d bytes", buf.Len())
+	}
+}
+
+// renderUncompressed produces an uncompressed stream so tests can assert
+// on localized text markers inside the PDF content.
+func renderUncompressed(t *testing.T, client model.Client) string {
+	t.Helper()
+	pix := fixturePIX
+	var buf bytes.Buffer
+	if err := renderInvoice(&buf, senderFixture(), client, invoiceFixture(&pix), false); err != nil {
+		t.Fatalf("renderInvoice() error = %v", err)
+	}
+	return buf.String()
+}
+
+func TestRenderInvoiceLocalizesPerClientLanguage(t *testing.T) {
+	tests := []struct {
+		name        string
+		language    string
+		wantMarkers []string
+		notWant     []string
+	}{
+		{
+			name:     "en client gets english labels",
+			language: "en",
+			wantMarkers: []string{
+				"Invoice #000001", "Issued: 21/08/2026", "Due: 05/09/2026",
+				"Bill to:", "Qty", "Description", "Unit price",
+				"Subtotal", "Total", "PIX key: "+fixturePIX,
+				"Notes:",
+			},
+			notWant: []string{"Fatura #", "Chave PIX"},
+		},
+		{
+			name:     "pt-BR client keeps portuguese labels",
+			language: "pt-BR",
+			// Accented labels are translated to cp1252 single bytes by
+			// tr(), so markers use their byte sequences or ASCII prefixes.
+			wantMarkers: []string{
+				"Fatura #000001", "Emiss\xe3o: 21/08/2026", "Vencimento: 05/09/2026",
+				"Cobran\xe7a para:", "Qtd", "Descri\xe7\xe3o", "Pre\xe7o Unit.",
+				"Subtotal", "Total", "Chave PIX: "+fixturePIX,
+				"Observa\xe7\xf5es:",
+			},
+			notWant: []string{"Invoice #", "Bill to:"},
+		},
+		{
+			name:     "empty language defaults to pt-BR",
+			language: "",
+			wantMarkers: []string{"Fatura #000001", "Cobran\xe7a para:", "Chave PIX:"},
+			notWant:     []string{"Invoice #", "Bill to:"},
+		},
+		{
+			name:     "unknown language falls back to pt-BR",
+			language: "klingon",
+			wantMarkers: []string{"Fatura #000001", "Vencimento:", "Chave PIX:"},
+			notWant:     []string{"Invoice #", "PIX key:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := renderUncompressed(t, model.Client{Name: "Maria Souza", Language: tt.language})
+			for _, m := range tt.wantMarkers {
+				if !strings.Contains(got, m) {
+					t.Errorf("language %q: pdf missing marker %q", tt.language, m)
+				}
+			}
+			for _, m := range tt.notWant {
+				if strings.Contains(got, m) {
+					t.Errorf("language %q: pdf unexpectedly contains %q", tt.language, m)
+				}
+			}
+		})
 	}
 }
 
@@ -170,16 +245,19 @@ func TestRenderInvoiceConcurrent(t *testing.T) {
 
 func TestFormatInvoiceNumber(t *testing.T) {
 	tests := []struct {
+		lang   i18n.Lang
 		number int64
 		want   string
 	}{
-		{1, "Fatura #000001"},
-		{123456, "Fatura #123456"},
-		{1234567, "Fatura #1234567"},
+		{i18n.PtBR, 1, "Fatura #000001"},
+		{i18n.PtBR, 123456, "Fatura #123456"},
+		{i18n.En, 1, "Invoice #000001"},
+		// Unknown langs resolve through the en catalog.
+		{i18n.Lang("es"), 1234567, "Invoice #1234567"},
 	}
 	for _, tt := range tests {
-		if got := formatInvoiceNumber(tt.number); got != tt.want {
-			t.Errorf("formatInvoiceNumber(%d) = %q, want %q", tt.number, got, tt.want)
+		if got := formatInvoiceNumber(tt.lang, tt.number); got != tt.want {
+			t.Errorf("formatInvoiceNumber(%q, %d) = %q, want %q", tt.lang, tt.number, got, tt.want)
 		}
 	}
 }

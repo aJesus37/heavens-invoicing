@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-pdf/fpdf"
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 )
 
@@ -63,10 +64,19 @@ func PixKeyFor(inv model.Invoice, sender SenderInfo) *string {
 	return nil
 }
 
-func formatInvoiceNumber(n int64) string {
-	return fmt.Sprintf("Fatura #%06d", n)
+// invoiceLang resolves the invoice language from the client's stored
+// preference, falling back to pt-BR when it is empty or unknown.
+func invoiceLang(c model.Client) i18n.Lang {
+	return i18n.Resolve(c.Language)
 }
 
+func formatInvoiceNumber(lang i18n.Lang, n int64) string {
+	return i18n.T(lang, "pdf.invoice_number", n)
+}
+
+// formatDate renders dates as dd/mm/yyyy in every locale — a documented
+// decision: both supported audiences read this format unambiguously and
+// the invoice stays layout-identical across languages.
 func formatDate(t time.Time) string {
 	return t.Format("02/01/2006")
 }
@@ -99,19 +109,30 @@ func setBold(p *fpdf.Fpdf) {
 	p.SetTextColor(colorText[0], colorText[1], colorText[2])
 }
 
-// RenderInvoice writes a complete A4 invoice PDF to w.
+// RenderInvoice writes a complete A4 invoice PDF to w, localized to the
+// client's language (labels only; number and date formats are shared).
 func RenderInvoice(w io.Writer, sender SenderInfo, client model.Client, inv model.Invoice) error {
+	return renderInvoice(w, sender, client, inv, true)
+}
+
+// renderInvoice is RenderInvoice with a stream-compression switch so tests
+// can emit uncompressed PDFs and assert on the localized text markers.
+func renderInvoice(w io.Writer, sender SenderInfo, client model.Client, inv model.Invoice, compress bool) error {
 	p := fpdf.New("P", "mm", "A4", "")
+	if !compress {
+		p.SetCompression(false)
+	}
 	p.SetMargins(margin, margin, margin)
 	p.SetAutoPageBreak(true, margin)
 	p.AddPage()
 
-	drawHeader(p, sender, inv)
-	drawBillTo(p, client)
-	drawItems(p, inv)
-	drawTotals(p, inv)
-	drawPIX(p, inv, sender)
-	drawNotes(p, inv)
+	lang := invoiceLang(client)
+	drawHeader(p, lang, sender, inv)
+	drawBillTo(p, lang, client)
+	drawItems(p, lang, inv)
+	drawTotals(p, lang, inv)
+	drawPIX(p, lang, inv, sender)
+	drawNotes(p, lang, inv)
 
 	if p.Err() {
 		return fmt.Errorf("rendering invoice: %s", p.Error())
@@ -122,7 +143,7 @@ func RenderInvoice(w io.Writer, sender SenderInfo, client model.Client, inv mode
 	return nil
 }
 
-func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
+func drawHeader(p *fpdf.Fpdf, lang i18n.Lang, sender SenderInfo, inv model.Invoice) {
 	startY := p.GetY()
 
 	setBold(p)
@@ -138,9 +159,9 @@ func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
 		text string
 		bold bool
 	}{
-		{formatInvoiceNumber(inv.Number), true},
-		{"Emissão: " + formatDate(inv.IssueDate), false},
-		{"Vencimento: " + formatDate(inv.DueDate), false},
+		{formatInvoiceNumber(lang, inv.Number), true},
+		{i18n.T(lang, "pdf.issued", formatDate(inv.IssueDate)), false},
+		{i18n.T(lang, "pdf.due", formatDate(inv.DueDate)), false},
 	} {
 		p.SetX(rightX)
 		if line.bold {
@@ -161,9 +182,9 @@ func drawHeader(p *fpdf.Fpdf, sender SenderInfo, inv model.Invoice) {
 	p.Ln(6)
 }
 
-func drawBillTo(p *fpdf.Fpdf, client model.Client) {
+func drawBillTo(p *fpdf.Fpdf, lang i18n.Lang, client model.Client) {
 	setBold(p)
-	p.CellFormat(contentSize, lineHeight, tr("Cobrança para:"), "", 2, "L", false, 0, "")
+	p.CellFormat(contentSize, lineHeight, tr(i18n.T(lang, "pdf.bill_to")), "", 2, "L", false, 0, "")
 	setRegular(p)
 	p.CellFormat(contentSize, lineHeight, tr(client.Name), "", 2, "L", false, 0, "")
 	if client.Address != "" {
@@ -179,13 +200,18 @@ type column struct {
 
 var itemCols = []column{
 	{width: 20, align: "L"},   // Qty
-	{width: 85, align: "L"},   // Descrição
-	{width: 37.5, align: "R"}, // Preço Unit.
+	{width: 85, align: "L"},   // Description
+	{width: 37.5, align: "R"}, // Unit price
 	{width: 37.5, align: "R"}, // Total
 }
 
-func drawItems(p *fpdf.Fpdf, inv model.Invoice) {
-	headers := []string{"Qty", "Descrição", "Preço Unit.", "Total"}
+func drawItems(p *fpdf.Fpdf, lang i18n.Lang, inv model.Invoice) {
+	headers := []string{
+		i18n.T(lang, "pdf.qty"),
+		i18n.T(lang, "pdf.description"),
+		i18n.T(lang, "pdf.unit_price"),
+		i18n.T(lang, "pdf.total"),
+	}
 
 	p.SetFillColor(colorFill[0], colorFill[1], colorFill[2])
 	setBold(p)
@@ -212,7 +238,7 @@ func drawItems(p *fpdf.Fpdf, inv model.Invoice) {
 	p.Ln(4)
 }
 
-func drawTotals(p *fpdf.Fpdf, inv model.Invoice) {
+func drawTotals(p *fpdf.Fpdf, lang i18n.Lang, inv model.Invoice) {
 	labelW, valueW := contentSize-itemCols[3].width-60, 60.0
 	valueX := margin + contentSize - valueW
 
@@ -221,8 +247,8 @@ func drawTotals(p *fpdf.Fpdf, inv model.Invoice) {
 		value int64
 		bold  bool
 	}{
-		{"Subtotal", inv.Subtotal, false},
-		{"Total", inv.Total, true},
+		{i18n.T(lang, "pdf.subtotal"), inv.Subtotal, false},
+		{i18n.T(lang, "pdf.total"), inv.Total, true},
 	}
 	for _, r := range rows {
 		if r.bold {
@@ -237,17 +263,17 @@ func drawTotals(p *fpdf.Fpdf, inv model.Invoice) {
 	p.Ln(4)
 }
 
-func drawPIX(p *fpdf.Fpdf, inv model.Invoice, sender SenderInfo) {
+func drawPIX(p *fpdf.Fpdf, lang i18n.Lang, inv model.Invoice, sender SenderInfo) {
 	key := PixKeyFor(inv, sender)
 	if key == nil {
 		return
 	}
 	setBold(p)
-	p.CellFormat(contentSize, lineHeight, tr("Chave PIX: "+*key), "", 2, "L", false, 0, "")
+	p.CellFormat(contentSize, lineHeight, tr(i18n.T(lang, "pdf.pix_key", *key)), "", 2, "L", false, 0, "")
 	p.Ln(2)
 }
 
-func drawNotes(p *fpdf.Fpdf, inv model.Invoice) {
+func drawNotes(p *fpdf.Fpdf, lang i18n.Lang, inv model.Invoice) {
 	notes := strings.TrimSpace(inv.Notes)
 	if notes == "" {
 		return
@@ -257,5 +283,5 @@ func drawNotes(p *fpdf.Fpdf, inv model.Invoice) {
 		p.SetY(y) // pin notes to the bottom of the page
 	}
 	setMuted(p)
-	p.MultiCell(contentSize, lineHeight, tr("Observações: "+notes), "", "L", false)
+	p.MultiCell(contentSize, lineHeight, tr(i18n.T(lang, "pdf.notes", notes)), "", "L", false)
 }
