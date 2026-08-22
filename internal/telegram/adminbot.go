@@ -75,10 +75,7 @@ func (b *AdminBot) lang() i18n.Lang {
 	if b.locale == nil {
 		return DefaultLocale
 	}
-	if l, ok := i18n.Parse(string(b.locale())); ok {
-		return l
-	}
-	return DefaultLocale
+	return i18n.ResolveSettings(string(b.locale()))
 }
 
 // Handle processes one incoming message text and returns the reply string.

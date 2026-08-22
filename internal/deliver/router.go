@@ -93,10 +93,7 @@ func (r *Router) locale() i18n.Lang {
 	if r.adminLang == nil {
 		return defaultLang
 	}
-	if l, ok := i18n.Parse(string(r.adminLang())); ok {
-		return l
-	}
-	return defaultLang
+	return i18n.ResolveSettings(string(r.adminLang()))
 }
 
 // SendInvoice delivers the rendered invoice PDF through the requested

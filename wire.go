@@ -29,14 +29,16 @@ func settingOr(ctx context.Context, s *repo.SettingsRepo, key string) string {
 // settingsLocale resolves the stored locale at call time so a change on
 // the settings page reaches admin notifications and bot replies without a
 // restart. Unset or unknown values keep pt-BR. The unnamed func type is
-// assignable to both deliver.AdminLocaleFunc and telegram.LocaleFunc.
+// assignable to both deliver.AdminLocaleFunc and telegram.LocaleFunc. A
+// read failure is logged (not silently swallowed) before falling back.
 func settingsLocale(s *repo.SettingsRepo) func() i18n.Lang {
 	return func() i18n.Lang {
 		v, err := s.Get(context.Background(), repo.SettingLocale)
 		if err != nil {
+			log.Printf("settings: locale read failed, defaulting to %s: %v", i18n.PtBR, err)
 			return i18n.PtBR
 		}
-		return i18n.Resolve(v)
+		return i18n.ResolveSettings(v)
 	}
 }
 

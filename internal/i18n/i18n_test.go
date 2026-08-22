@@ -14,16 +14,40 @@ func keysOf(c catalog) []string {
 	return keys
 }
 
+// countFormatVerbs counts the fmt formatting verbs in s, ignoring the
+// literal "%%". A drift between catalogs (e.g. an added %s / dropped %d)
+// would otherwise render "%!s(MISSING)" at runtime, so parity must cover
+// verb counts, not just key/value presence.
+func countFormatVerbs(s string) int {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' {
+			if i+1 < len(s) && s[i+1] == '%' {
+				i++ // literal percent, not a verb
+				continue
+			}
+			n++
+		}
+	}
+	return n
+}
+
 // TestCatalogParity fails listing every key that drifted between the two
-// catalogs; en and pt-BR must cover identical key sets.
+// catalogs; en and pt-BR must cover identical key sets and, for every key,
+// the same count of fmt formatting verbs.
 func TestCatalogParity(t *testing.T) {
 	en := catalogs[En]
 	pt := catalogs[PtBR]
 
-	var missingInEn, missingInPt []string
+	var missingInEn, missingInPt, verbDrift []string
 	for _, k := range keysOf(pt) {
-		if _, ok := en[k]; !ok {
+		ev, ok := en[k]
+		if !ok {
 			missingInEn = append(missingInEn, k)
+			continue
+		}
+		if countFormatVerbs(ev) != countFormatVerbs(pt[k]) {
+			verbDrift = append(verbDrift, k)
 		}
 	}
 	for _, k := range keysOf(en) {
@@ -34,6 +58,9 @@ func TestCatalogParity(t *testing.T) {
 	if len(missingInEn)+len(missingInPt) > 0 {
 		t.Fatalf("locale catalogs drifted:\n  missing in en.json: %v\n  missing in pt-BR.json: %v",
 			missingInEn, missingInPt)
+	}
+	if len(verbDrift) > 0 {
+		t.Fatalf("locale catalogs drifted in fmt verb counts (key -> en vs pt-BR verbs):\n  %v", verbDrift)
 	}
 }
 
