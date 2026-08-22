@@ -12,7 +12,7 @@
 // value lives in a non-HttpOnly cookie (set by the auth layer) so same-
 // origin JS can read it here; classic form posts send the same value via a
 // hidden csrf_token field, and the gate accepts either.
-document.body.addEventListener('htmx:config-request', function (evt) {
+document.addEventListener('htmx:config-request', function (evt) {
   var meta = document.querySelector('meta[name="csrf-token"]');
   if (meta) { evt.detail.headers['X-CSRF-Token'] = meta.getAttribute('content'); }
 });
