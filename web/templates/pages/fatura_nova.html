@@ -63,6 +63,19 @@
 <button type="submit">{{T "button.create_invoice"}}</button>
 <a class="btn btn-secondary" href="/faturas">{{T "button.cancel"}}</a>
 </div>
+<script>
+document.querySelectorAll('.product-picker').forEach(function(sel){
+  sel.addEventListener('change', function(){
+    var r = this.dataset.row;
+    var opt = this.options[this.selectedIndex];
+    if (!opt || !opt.value) return;
+    var d = document.querySelector('input[name="item_desc_'+r+'"]');
+    var p = document.querySelector('input[name="item_price_'+r+'"]');
+    if (d) d.value = opt.dataset.description || "";
+    if (p) p.value = opt.dataset.price || "";
+  });
+});
+</script>
 </form>
 </div>
 {{end}}

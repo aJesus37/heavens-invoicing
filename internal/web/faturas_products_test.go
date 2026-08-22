@@ -81,3 +81,38 @@ func TestNewInvoiceFormWithNoProducts(t *testing.T) {
 	}
 	_ = body
 }
+
+func TestProductPickerJS(t *testing.T) {
+	ts, _ := newTestEnv(t)
+	status, body := get(t, ts, "/faturas/nova")
+	if status != 200 {
+		t.Fatalf("GET /faturas/nova: got %d want 200", status)
+	}
+	if !strings.Contains(body, "<script>") {
+		t.Error("invoice form missing <script> for product picker")
+	}
+	if !strings.Contains(body, "product-picker") {
+		t.Error("invoice form script missing product-picker selector")
+	}
+	if !strings.Contains(body, "addEventListener") || !strings.Contains(body, "change") {
+		t.Error("invoice form script missing addEventListener change handling")
+	}
+	if !strings.Contains(body, "dataset.description") && !strings.Contains(body, "data-description") {
+		t.Error("invoice form script missing data-description/dataset.description handling")
+	}
+	if !strings.Contains(body, "dataset.price") && !strings.Contains(body, "data-price") {
+		t.Error("invoice form script missing data-price/dataset.price handling")
+	}
+	if !strings.Contains(body, "item_desc_") {
+		t.Error("invoice form script missing item_desc_ input handling")
+	}
+	if !strings.Contains(body, "item_price_") {
+		t.Error("invoice form script missing item_price_ input handling")
+	}
+	if !strings.Contains(body, "dataset.row") {
+		t.Error("invoice form script missing dataset.row handling")
+	}
+	if !strings.Contains(body, "querySelector") {
+		t.Error("invoice form script missing querySelector handling")
+	}
+}
