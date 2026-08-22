@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jesus/invoice-app/internal/model"
+	"github.com/jesus/invoice-app/internal/repo"
 )
 
 func TestNewInvoiceFormShowsProductPicker(t *testing.T) {
@@ -114,5 +115,37 @@ func TestProductPickerJS(t *testing.T) {
 	}
 	if !strings.Contains(body, "querySelector") {
 		t.Error("invoice form script missing querySelector handling")
+	}
+}
+
+func TestProductPickerI18n(t *testing.T) {
+	ts, repos := newTestEnv(t)
+	ctx := context.Background()
+
+	// Default locale is pt-BR: picker placeholder should be Portuguese.
+	status, body := get(t, ts, "/faturas/nova")
+	if status != 200 {
+		t.Fatalf("GET /faturas/nova (pt-BR): got %d want 200\nbody: %s", status, body)
+	}
+	if strings.Contains(body, "!label.select_product") {
+		t.Error("invoice form contains missing i18n marker !label.select_product (pt-BR)")
+	}
+	if !strings.Contains(body, "Selecione o produto") {
+		t.Error("invoice form missing pt-BR translation for label.select_product: want \"Selecione o produto\"")
+	}
+
+	// Switch to English and verify translation changes.
+	if err := repos.Settings.Set(ctx, repo.SettingLocale, "en"); err != nil {
+		t.Fatalf("set locale en: %v", err)
+	}
+	status, body = get(t, ts, "/faturas/nova")
+	if status != 200 {
+		t.Fatalf("GET /faturas/nova (en): got %d want 200\nbody: %s", status, body)
+	}
+	if strings.Contains(body, "!label.select_product") {
+		t.Error("invoice form contains missing i18n marker !label.select_product (en)")
+	}
+	if !strings.Contains(body, "Select product") {
+		t.Error("invoice form missing en translation for label.select_product: want \"Select product\"")
 	}
 }

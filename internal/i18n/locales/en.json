@@ -174,6 +174,7 @@
   "label.pix_key": "PIX key",
   "label.pix_optional": "PIX key (optional — uses the default if empty)",
   "label.select": "— select —",
+  "label.select_product": "Select product",
   "label.telegram_chat_id": "Telegram chat ID",
   "label.template_invoice": "Template invoice (drafts)",
   "label.unit_price_brl": "Unit price (R$)",

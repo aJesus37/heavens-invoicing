@@ -227,11 +227,27 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	options := clientOptions(clients, r.FormValue("client_id"), lang)
 
+	products, err := h.repos.Products.List(ctx)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	productOpts := make([]productOption, 0, len(products))
+	for _, p := range products {
+		productOpts = append(productOpts, productOption{
+			Value:       p.ID,
+			Label:       p.Name,
+			Description: p.Description,
+			UnitPrice:   formatReais(p.UnitPrice),
+		})
+	}
+
 	// refail re-renders the form keeping everything the user already typed.
 	refail := func(msg string, code int) {
 		data := &faturaFormData{
 			ClientID:  r.FormValue("client_id"),
 			Clients:   options,
+			Products:  productOpts,
 			IssueDate: r.FormValue("issue_date"),
 			DueDate:   r.FormValue("due_date"),
 			Notes:     r.FormValue("notes"),
