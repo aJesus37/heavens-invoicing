@@ -15,6 +15,20 @@ import (
 	"github.com/jesus/invoice-app/internal/repo"
 )
 
+// partialFailureSender delivers on the channel but returns a non-nil
+// top-level error, simulating the "sent" status flip failing to persist after
+// a channel already succeeded. Per the Router contract the results slice is
+// non-nil and contains a success in that case.
+type partialFailureSender struct{}
+
+func (partialFailureSender) SendInvoice(_ context.Context, _ model.Client, _ model.Invoice, _ []byte, _ string) ([]deliver.ChannelResult, error) {
+	return []deliver.ChannelResult{{Channel: "email"}}, errors.New("status flip failed")
+}
+
+func (partialFailureSender) SendReminder(_ context.Context, _ model.Client, _ model.Invoice, _ string) ([]deliver.ChannelResult, error) {
+	return []deliver.ChannelResult{{Channel: "email"}}, nil
+}
+
 // allFailingSender fails every invoice delivery so the scheduler must roll
 // back each clone it attempts.
 type allFailingSender struct{}
@@ -89,5 +103,72 @@ func TestNoOrphanDraftsAcrossDays(t *testing.T) {
 	// Exactly one draft (the template) — no accumulation across the 5 days.
 	if len(drafts) != 1 {
 		t.Fatalf("draft invoices after %d failing ticks = %d, want exactly 1 (the template)", days, len(drafts))
+	}
+}
+
+// TestPartialDeliveryKeepsDraftAndAdvances proves that when a channel delivers
+// but the status flip fails, the already-delivered invoice is NOT rolled back
+// (no data loss) and the schedule still advances so it isn't re-sent.
+func TestPartialDeliveryKeepsDraftAndAdvances(t *testing.T) {
+	conn, err := db.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	repos := repo.New(conn)
+	ctx := context.Background()
+
+	client, err := repos.Clients.Create(ctx, &model.Client{ID: "c2", Name: "Globex", Email: sp("g@g.com")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpl := &model.Invoice{
+		ClientID:  client.ID,
+		IssueDate: day("2026-09-01"),
+		DueDate:   day("2026-10-01"),
+		Items:     []*model.InvoiceItem{{Description: "Serviço", UnitPrice: 1000, Quantity: 1}},
+	}
+	if err := repos.Invoices.Create(ctx, tpl); err != nil {
+		t.Fatal(err)
+	}
+	sched := &model.RecurringSchedule{
+		ClientID:          client.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		NextSendDate:      day("2026-09-01"),
+		DeliveryMethod:    "email",
+	}
+	if err := repos.Recurring.Create(ctx, sched); err != nil {
+		t.Fatal(err)
+	}
+
+	sender := partialFailureSender{}
+	notifier := &fakeNotifier{}
+	clock := day("2026-09-01")
+	s := New(repos.Recurring, repos.Invoices, repos.Clients, sender, notifier,
+		func() i18n.Lang { return i18n.PtBR }, pdf.SenderInfo{}, func() time.Time { return clock })
+
+	// First tick: partial failure — returns nil (advanced), clone kept.
+	if err := s.Tick(ctx); err != nil {
+		t.Fatalf("Tick returned error on partial delivery: %v", err)
+	}
+	drafts, err := repos.Invoices.ListByStatus(ctx, "draft")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drafts) != 2 {
+		t.Fatalf("draft invoices after partial tick = %d, want 2 (template + delivered clone kept)", len(drafts))
+	}
+
+	// Second tick on the same day must not re-fire (schedule advanced past today).
+	if err := s.Tick(ctx); err != nil {
+		t.Fatalf("second Tick returned error: %v", err)
+	}
+	drafts, err = repos.Invoices.ListByStatus(ctx, "draft")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drafts) != 2 {
+		t.Fatalf("second tick created an extra draft: got %d, want 2", len(drafts))
 	}
 }

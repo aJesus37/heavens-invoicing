@@ -238,12 +238,24 @@ func (s *Scheduler) fireSchedule(ctx context.Context, sched *model.RecurringSche
 
 	results, err := s.router.SendInvoice(ctx, *client, *inv, buf.Bytes(), sched.DeliveryMethod)
 	if err != nil {
-		// Routing refused outright (e.g. the invoice is already paid) or
-		// delivery succeeded but the "sent" flip did not persist: the clone
-		// is an orphan we must not leave behind, so roll it back and do not
-		// advance. The Router already told the admin what happened.
-		s.rollbackClone(ctx, inv.ID)
-		return fmt.Errorf("send invoice #%06d via %s: %w", inv.Number, sched.DeliveryMethod, err)
+		// A non-nil top-level error has two meanings here:
+		//   - routing refused outright (results == nil): nothing was
+		//     delivered, so drop the clone and do not advance;
+		//   - a channel delivered but the "sent" status flip failed to
+		//     persist (results != nil): the client already has the invoice,
+		//     so keep the clone and advance the schedule to avoid re-sending
+		//     it on the next tick.
+		if len(results) == 0 {
+			s.rollbackClone(ctx, inv.ID)
+			return fmt.Errorf("send invoice #%06d via %s: %w", inv.Number, sched.DeliveryMethod, err)
+		}
+		log.Printf("scheduler: invoice #%06d delivered but status flip failed: %v", inv.Number, err)
+		sched.LastSentDate = &today
+		sched.NextSendDate = next
+		if uerr := s.recurring.Update(ctx, sched); uerr != nil {
+			return fmt.Errorf("advance schedule after partial send #%06d: %w", inv.Number, uerr)
+		}
+		return nil
 	}
 	if !anyChannelOK(results) {
 		// Delivery failed on every channel: dropping the clone here is what
