@@ -1,0 +1,232 @@
+package deliver_test
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/model"
+	"github.com/jesus/invoice-app/internal/whatsapp"
+)
+
+var _ deliver.WhatsAppAPI = (*whatsapp.Session)(nil)
+
+type waCall struct {
+	method   string // "SendMessage" | "SendDocument"
+	jid      string
+	text     string
+	filename string
+	data     []byte
+	caption  string
+}
+
+type fakeWhatsApp struct {
+	calls []waCall
+	err   error
+}
+
+func (f *fakeWhatsApp) SendMessage(_ context.Context, jid, text string) error {
+	f.calls = append(f.calls, waCall{method: "SendMessage", jid: jid, text: text})
+	return f.err
+}
+
+func (f *fakeWhatsApp) SendDocument(_ context.Context, jid, filename string, data []byte, caption string) error {
+	f.calls = append(f.calls, waCall{method: "SendDocument", jid: jid, filename: filename, data: data, caption: caption})
+	return f.err
+}
+
+func waClient(phone *string) model.Client {
+	return model.Client{Name: "Acme Ltda", Phone: phone}
+}
+
+func TestWhatsAppName(t *testing.T) {
+	if got := deliver.NewWhatsApp(&fakeWhatsApp{}, "").Name(); got != "whatsapp" {
+		t.Fatalf("want %q, got %q", "whatsapp", got)
+	}
+}
+
+func TestWhatsAppSendInvoice(t *testing.T) {
+	api := &fakeWhatsApp{}
+	d := deliver.NewWhatsApp(api, "pix@fallback.com")
+	phone := "+55 11 99999-9999"
+	pdf := []byte("%PDF-fake")
+
+	if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), pdf); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(api.calls) != 1 {
+		t.Fatalf("want 1 call, got %d", len(api.calls))
+	}
+	call := api.calls[0]
+
+	if call.method != "SendDocument" {
+		t.Fatalf("method: want SendDocument, got %q", call.method)
+	}
+	if call.jid != "5511999999999@s.whatsapp.net" {
+		t.Fatalf("JID: want %q, got %q", "5511999999999@s.whatsapp.net", call.jid)
+	}
+	if call.filename != "fatura-000001.pdf" {
+		t.Fatalf("filename: want %q, got %q", "fatura-000001.pdf", call.filename)
+	}
+	if string(call.data) != string(pdf) {
+		t.Fatal("document bytes differ from PDF passed in")
+	}
+	for _, want := range []string{"Fatura #000001", "Acme Ltda"} {
+		assertContains(t, call.caption, want)
+	}
+}
+
+func TestWhatsAppSendReminder(t *testing.T) {
+	api := &fakeWhatsApp{}
+	d := deliver.NewWhatsApp(api, "")
+	phone := "+5511999999999"
+
+	if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(api.calls) != 1 {
+		t.Fatalf("want 1 call, got %d", len(api.calls))
+	}
+	call := api.calls[0]
+
+	if call.method != "SendMessage" {
+		t.Fatalf("method: want SendMessage, got %q", call.method)
+	}
+	if call.jid != "5511999999999@s.whatsapp.net" {
+		t.Fatalf("JID: want %q, got %q", "5511999999999@s.whatsapp.net", call.jid)
+	}
+	for _, want := range []string{"000001", "05/09/2026"} {
+		if !strings.Contains(call.text, want) {
+			t.Fatalf("reminder text %q does not contain %q", call.text, want)
+		}
+	}
+}
+
+func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
+	invoicePix := "pix@invoice.com"
+	fallbackPix := "pix@fallback.com"
+
+	invoiceWithKey := func() model.Invoice {
+		inv := testInvoice()
+		inv.PIXKey = strPtr(invoicePix)
+		return inv
+	}
+	phone := "+5511999999999"
+
+	t.Run("invoice key over fallback", func(t *testing.T) {
+		api := &fakeWhatsApp{}
+		d := deliver.NewWhatsApp(api, fallbackPix)
+
+		if err := d.SendInvoice(context.Background(), waClient(&phone), invoiceWithKey(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[0].caption, "Chave PIX: "+invoicePix)
+		if strings.Contains(api.calls[0].caption, fallbackPix) {
+			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[0].caption)
+		}
+
+		if err := d.SendReminder(context.Background(), waClient(&phone), invoiceWithKey()); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[1].text, "Chave PIX: "+invoicePix)
+	})
+
+	t.Run("falls back when invoice has none", func(t *testing.T) {
+		api := &fakeWhatsApp{}
+		d := deliver.NewWhatsApp(api, fallbackPix)
+
+		if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[0].caption, "Chave PIX: "+fallbackPix)
+
+		if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
+			t.Fatal(err)
+		}
+		assertContains(t, api.calls[1].text, "Chave PIX: "+fallbackPix)
+	})
+
+	t.Run("omitted entirely when no key anywhere", func(t *testing.T) {
+		api := &fakeWhatsApp{}
+		d := deliver.NewWhatsApp(api, "")
+
+		if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), []byte("pdf")); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(api.calls[0].caption, "Chave PIX") {
+			t.Fatalf("empty key must omit the line, got %q", api.calls[0].caption)
+		}
+
+		if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(api.calls[1].text, "Chave PIX") {
+			t.Fatalf("empty key must omit the line, got %q", api.calls[1].text)
+		}
+	})
+}
+
+func TestWhatsAppMissingPhone(t *testing.T) {
+	ctx := context.Background()
+	pdf := []byte("pdf")
+
+	for _, tc := range []struct {
+		name  string
+		phone *string
+	}{
+		{"nil", nil},
+		{"empty", strPtr("")},
+		{"blank spaces", strPtr("   ")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &fakeWhatsApp{}
+			d := deliver.NewWhatsApp(api, "")
+			client := waClient(tc.phone)
+
+			errInv := d.SendInvoice(ctx, client, testInvoice(), pdf)
+			if errInv == nil || !strings.Contains(errInv.Error(), "no WhatsApp phone") {
+				t.Errorf("SendInvoice: want descriptive missing-phone error, got %v", errInv)
+			}
+			errRem := d.SendReminder(ctx, client, testInvoice())
+			if errRem == nil || !strings.Contains(errRem.Error(), "no WhatsApp phone") {
+				t.Errorf("SendReminder: want descriptive missing-phone error, got %v", errRem)
+			}
+			if len(api.calls) != 0 {
+				t.Fatalf("no send expected, got %d calls", len(api.calls))
+			}
+		})
+	}
+}
+
+func TestWhatsAppInvalidPhone(t *testing.T) {
+	raw := "+55 11 abc"
+	api := &fakeWhatsApp{}
+	d := deliver.NewWhatsApp(api, "")
+	client := waClient(&raw)
+
+	err := d.SendInvoice(context.Background(), client, testInvoice(), []byte("pdf"))
+	if err == nil || !strings.Contains(err.Error(), raw) {
+		t.Fatalf("want error mentioning raw input %q, got %v", raw, err)
+	}
+	if len(api.calls) != 0 {
+		t.Fatalf("no send expected, got %d calls", len(api.calls))
+	}
+}
+
+func TestWhatsAppAPIErrorPropagates(t *testing.T) {
+	wantErr := errors.New("whatsapp down")
+	api := &fakeWhatsApp{err: wantErr}
+	d := deliver.NewWhatsApp(api, "")
+	phone := "+5511999999999"
+
+	if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), []byte("pdf")); !errors.Is(err, wantErr) {
+		t.Fatalf("want API error, got %v", err)
+	}
+	if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); !errors.Is(err, wantErr) {
+		t.Fatalf("want API error, got %v", err)
+	}
+}
