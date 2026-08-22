@@ -21,6 +21,8 @@ import (
 // tables managed by whatsmeow's own upgrade system), so a pairing done
 // once survives application restarts.
 type Session struct {
+	// container is kept for the settings page (logout, pairing status),
+	// which needs direct access to the device store.
 	container *sqlstore.Container
 	client    *whatsmeow.Client
 }
@@ -43,7 +45,11 @@ func NewSession(ctx context.Context, db *sql.DB, logs waLog.Logger) (*Session, e
 }
 
 // Connect establishes the connection to WhatsApp. It is a no-op when the
-// client is already connected.
+// client is already connected. Concurrent callers may get whatsmeow's
+// ErrAlreadyConnected from the race between the IsConnected check and the
+// connect itself; that error is benign and can be ignored. A nil return
+// does not guarantee the connection stays up: whatsmeow reconnects in the
+// background, so use IsConnected for current state.
 func (s *Session) Connect(ctx context.Context) error {
 	if s.client.IsConnected() {
 		return nil
@@ -77,11 +83,23 @@ func (s *Session) WaitPairCompleted(ctx context.Context) error {
 	})
 	defer s.client.RemoveEventHandler(id)
 
+	// Prefer the event when both are ready so a successful pair is not
+	// reported as cancellation.
+	select {
+	case <-evts:
+		return nil
+	default:
+	}
 	select {
 	case <-evts:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		select {
+		case <-evts:
+			return nil
+		default:
+			return ctx.Err()
+		}
 	}
 }
 
