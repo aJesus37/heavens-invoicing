@@ -34,7 +34,13 @@
 {{$d := .}}
 {{range $i, $it := $d.Items}}
 <tr>
-<td><input type="text" name="item_desc_{{$i}}" value="{{$it.Description}}"></td>
+<td>
+  <select class="product-picker" data-row="{{$i}}">
+    <option value="">{{T "label.select_product"}}</option>
+    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}}</option>{{end}}
+  </select>
+  <input type="text" name="item_desc_{{$i}}" value="{{$it.Description}}">
+</td>
 <td><input type="text" name="item_qty_{{$i}}" value="{{$it.Quantity}}" inputmode="numeric" placeholder="1"></td>
 <td><input type="text" name="item_price_{{$i}}" value="{{$it.UnitPrice}}" placeholder="0,00"></td>
 </tr>

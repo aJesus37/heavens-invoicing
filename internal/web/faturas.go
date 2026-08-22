@@ -100,6 +100,7 @@ type itemForm struct {
 type faturaFormData struct {
 	ClientID  string
 	Clients   []selectOption
+	Products  []productOption
 	IssueDate string
 	DueDate   string
 	Notes     string
@@ -112,6 +113,13 @@ type selectOption struct {
 	Value    string
 	Label    string
 	Selected bool
+}
+
+type productOption struct {
+	Value       string
+	Label       string
+	Description string
+	UnitPrice   string
 }
 
 func clientOptions(clients []*model.Client, selected string, lang i18n.Lang) []selectOption {
@@ -130,9 +138,24 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
+	products, err := h.repos.Products.List(r.Context())
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	opts := make([]productOption, 0, len(products))
+	for _, p := range products {
+		opts = append(opts, productOption{
+			Value:       p.ID,
+			Label:       p.Name,
+			Description: p.Description,
+			UnitPrice:   formatReais(p.UnitPrice),
+		})
+	}
 	today := time.Now()
 	data := &faturaFormData{
 		Clients:   clientOptions(clients, "", lang),
+		Products:  opts,
 		IssueDate: today.Format("2006-01-02"),
 		DueDate:   today.AddDate(0, 0, 15).Format("2006-01-02"),
 	}
