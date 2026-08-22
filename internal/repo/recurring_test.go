@@ -167,3 +167,42 @@ func TestRecurringListOrderedByNextSendDate(t *testing.T) {
 		}
 	}
 }
+
+func TestRecurringListActiveFiltersDeactivated(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+	client, tpl := recurringSeed(t, r)
+
+	active := &model.RecurringSchedule{
+		ClientID:          client.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		NextSendDate:      mustDate("2026-09-01"),
+		DeliveryMethod:    "all",
+	}
+	if err := r.Recurring.Create(ctx, active); err != nil {
+		t.Fatal(err)
+	}
+	inactive := &model.RecurringSchedule{
+		ClientID:          client.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "weekly",
+		NextSendDate:      mustDate("2026-08-01"), // earlier on purpose
+		DeliveryMethod:    "email",
+	}
+	if err := r.Recurring.Create(ctx, inactive); err != nil {
+		t.Fatal(err)
+	}
+	inactive.Active = false
+	if err := r.Recurring.Update(ctx, inactive); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := r.Recurring.ListActive(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != active.ID || !list[0].Active {
+		t.Fatalf("list active = %+v, want only the active schedule", list)
+	}
+}

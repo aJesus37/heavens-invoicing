@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/jesus/invoice-app/internal/schedule"
 	"github.com/jesus/invoice-app/internal/telegram"
 	"github.com/jesus/invoice-app/internal/whatsapp"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -70,6 +73,31 @@ func tgNotifier(c *telegram.Client, adminChatID string) deliver.Notifier {
 	return telegram.NewNotifier(c, adminChatID)
 }
 
+// runAdminBot keeps the polling loop alive for the process lifetime:
+// AdminBot.Run exits permanently on its first polling error, so wrap it
+// with restarts on a growing backoff (30s doubling up to a 5min cap) until
+// the context is canceled.
+func runAdminBot(ctx context.Context, bot *telegram.AdminBot) {
+	const (
+		initialBackoff = 30 * time.Second
+		maxBackoff     = 5 * time.Minute
+	)
+	backoff := initialBackoff
+	for {
+		err := bot.Run(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		log.Printf("admin bot stopped (%v); restarting in %s", err, backoff)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, maxBackoff)
+	}
+}
+
 // startAdminBot launches the polling loop only when both the bot token and
 // the admin chat are configured; otherwise it logs why it is disabled.
 func startAdminBot(ctx context.Context, c *telegram.Client, adminChatID string, repos *repo.Repos) {
@@ -82,12 +110,20 @@ func startAdminBot(ctx context.Context, c *telegram.Client, adminChatID string, 
 		log.Println("admin bot disabled: no admin telegram chat configured")
 	default:
 		bot := telegram.NewAdminBot(c, adminChatID, repos.Invoices, repos.Clients)
-		go func() {
-			if err := bot.Run(ctx); err != nil && ctx.Err() == nil {
-				log.Printf("admin bot stopped: %v", err)
-			}
-		}()
+		go runAdminBot(ctx, bot)
 	}
+}
+
+// startScheduler launches the recurring-invoice scheduler goroutine. It runs
+// unconditionally: the Router degrades gracefully when channels are
+// unconfigured (per-channel "not configured" results), so ticks without any
+// delivery channel just report failures to the (possibly silent) notifier.
+func startScheduler(ctx context.Context, repos *repo.Repos, router *deliver.Router, notifier deliver.Notifier, senderInfo pdf.SenderInfo) {
+	sched := schedule.New(repos.Recurring, repos.Invoices, repos.Clients, router, notifier, senderInfo, time.Now)
+	go func() {
+		log.Printf("scheduler started (tick every %s)", schedule.DefaultInterval)
+		sched.Run(ctx)
+	}()
 }
 
 // setupEmail builds the SMTP-backed email deliverer when its required

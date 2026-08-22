@@ -107,6 +107,27 @@ func (r *RecurringRepo) List(ctx context.Context) ([]*model.RecurringSchedule, e
 	return schedules, rows.Err()
 }
 
+// ListActive returns every active schedule ordered by fire date; this is
+// the query the scheduler ticks against.
+func (r *RecurringRepo) ListActive(ctx context.Context) ([]*model.RecurringSchedule, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+recurringCols+` FROM recurring_schedules WHERE active = 1 ORDER BY next_send_date`)
+	if err != nil {
+		return nil, fmt.Errorf("list active recurring schedules: %w", err)
+	}
+	defer rows.Close()
+
+	schedules := make([]*model.RecurringSchedule, 0)
+	for rows.Next() {
+		s, err := scanRecurring(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		schedules = append(schedules, s)
+	}
+	return schedules, rows.Err()
+}
+
 func (r *RecurringRepo) Delete(ctx context.Context, id string) error {
 	res, err := r.db.ExecContext(ctx, `DELETE FROM recurring_schedules WHERE id = ?`, id)
 	if err != nil {

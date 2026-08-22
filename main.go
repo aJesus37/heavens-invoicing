@@ -60,6 +60,8 @@ func main() {
 	// Business name/address have no settings keys yet; the PIX fallback does.
 	senderInfo := pdf.SenderInfo{PIXKey: pixFallback}
 
+	startScheduler(ctx, repos, router, tgNotifier(tgClient, adminChatID), senderInfo)
+
 	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo)})
 	httpSrv := &http.Server{
 		Addr:              addr,
