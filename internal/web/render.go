@@ -38,8 +38,8 @@ func bindLang(tpl *template.Template, lang i18n.Lang, csrf string) (*template.Te
 	if err != nil {
 		return nil, err
 	}
-		return clone.Funcs(template.FuncMap{
-		"T": func(key string, args ...any) string { return i18n.T(lang, key, args...) },
+	return clone.Funcs(template.FuncMap{
+		"T":    func(key string, args ...any) string { return i18n.T(lang, key, args...) },
 		"CSRF": func() string { return csrf },
 	}), nil
 }

@@ -51,19 +51,23 @@ func setupSenderInfo(ctx context.Context, s *repo.SettingsRepo) pdf.SenderInfo {
 	}
 }
 
-// setupWhatsApp prepares the session store and attempts an initial
-// connect. Both steps are non-fatal: WhatsApp is optional at runtime, and
-// sends through an unlinked session fail with a clear error instead.
+// setupWhatsApp prepares the session store and, for an already-linked
+// device, connects it. Both steps are non-fatal: WhatsApp is optional at
+// runtime. Unpaired devices are NOT connected here — they have nothing to
+// do on the wire until linked from the settings page, and connecting one
+// only starts background reconnect churn behind a misleading log line.
 func setupWhatsApp(ctx context.Context, conn *sql.DB) *whatsapp.Session {
 	session, err := whatsapp.NewSession(ctx, conn, waLog.Noop)
 	if err != nil {
 		log.Printf("whatsapp unavailable (continuing without): %v", err)
 		return nil
 	}
-	if err := session.Connect(ctx); err != nil {
-		log.Printf("whatsapp connect failed (sends will retry on use): %v", err)
-	} else if session.IsConnected() {
-		log.Println("whatsapp connected")
+	if session.IsPaired() {
+		if err := session.Connect(ctx); err != nil {
+			log.Printf("whatsapp connect failed (sends will retry on use): %v", err)
+		} else if session.IsConnected() {
+			log.Println("whatsapp connected")
+		}
 	}
 	return session
 }

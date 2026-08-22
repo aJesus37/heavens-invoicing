@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -10,11 +11,9 @@ import (
 	"github.com/jesus/invoice-app/internal/whatsapp"
 )
 
-// connectTimeout bounds the WebSocket dial of each pairing attempt so a
-// hung network cannot stall one indefinitely. It deliberately does NOT
-// bound the QR stream: whatsmeow rotates codes for minutes and stops on
-// its own, and it disconnects when the stream context expires.
-const connectTimeout = 30 * time.Second
+// reconnectDelay gives the post-PairSuccess server-side disconnect time to
+// land before the fresh session dials back in.
+const reconnectDelay = 2 * time.Second
 
 // Pairing states surfaced by the settings fragment.
 const (
@@ -49,9 +48,10 @@ func newPairing(sess *whatsapp.Session) *pairingManager {
 
 // start kicks off one pairing attempt. It is safe to call repeatedly: an
 // in-flight attempt is never restarted, and paired sessions short-circuit.
-// The state decision happens under mu, but the blocking session I/O runs
-// outside it. lang localizes the failure messages recorded for the
-// settings fragment.
+// The state decision happens under mu; the blocking session I/O runs in a
+// background goroutine so the HTTP handler returns the fragment at once
+// instead of queueing behind a slow dial. lang localizes the failure
+// messages recorded for the settings fragment.
 func (p *pairingManager) start(lang i18n.Lang) {
 	p.mu.Lock()
 	if p.sess == nil || p.state == pairPending {
@@ -75,20 +75,23 @@ func (p *pairingManager) start(lang i18n.Lang) {
 	p.errMsg = ""
 	p.mu.Unlock()
 
-	p.attempt(gen, lang)
+	go p.attempt(gen, lang)
 }
 
 // attempt runs the blocking half of a pairing attempt with no lock held.
+//
+// The context handed to Connect must stay alive for the whole pairing:
+// whatsmeow keeps using it for the connection's keep-alive and handler
+// loops after ConnectContext returns. Cancelling it once the dial
+// completes — the tempting "bound only the dial" pattern — silently tears
+// the socket down a few hundred milliseconds later, before WhatsApp ever
+// sends the QR codes, and the stream then ends as a bare "timeout".
 func (p *pairingManager) attempt(gen int, lang i18n.Lang) {
-	// A connect from boot blocks GetQRChannel; drop it first.
+	// A connect left over from boot blocks GetQRChannel; drop it first.
 	if p.sess.IsConnected() {
 		p.sess.Close()
 	}
 
-	// The QR stream outlives the dial (codes rotate until the server
-	// closes the channel), so its context carries no deadline; cancelling
-	// it — via stopLocked on a retry or when the pump exits — tears down
-	// both. Only the dial itself is bounded by connectTimeout.
 	ctx, cancel := context.WithCancel(context.Background())
 	ch, err := p.sess.QRChannel(ctx)
 	if err != nil {
@@ -96,10 +99,7 @@ func (p *pairingManager) attempt(gen int, lang i18n.Lang) {
 		p.fail(err.Error())
 		return
 	}
-	dialCtx, dialCancel := context.WithTimeout(ctx, connectTimeout)
-	err = p.sess.Connect(dialCtx)
-	dialCancel()
-	if err != nil {
+	if err := p.sess.Connect(ctx); err != nil {
 		cancel()
 		p.fail(i18n.T(lang, "wa.err_connection", err))
 		return
@@ -136,6 +136,7 @@ func (p *pairingManager) attempt(gen int, lang i18n.Lang) {
 					p.state = pairConnected
 				}
 				p.mu.Unlock()
+				go p.reconnectAfterPair()
 				return
 			case item.Event == "error":
 				p.mu.Lock()
@@ -172,6 +173,22 @@ func (p *pairingManager) fail(msg string) {
 	p.qr = ""
 	p.state = pairFailed
 	p.errMsg = msg
+}
+
+// reconnectAfterPair establishes the real session once linking succeeds.
+// WhatsApp disconnects the companion immediately after PairSuccess, and
+// the QR stream's context dies with the pump, so without this explicit
+// reconnect the app would report "connected" while every send failed as
+// not connected.
+func (p *pairingManager) reconnectAfterPair() {
+	time.Sleep(reconnectDelay)
+	if p.sess == nil {
+		return
+	}
+	p.sess.Close()
+	if err := p.sess.Connect(context.Background()); err != nil {
+		log.Printf("web: whatsapp reconnect after pairing failed (sends will retry on use): %v", err)
+	}
 }
 
 // snapshot returns the current state, pending QR code ("" when none) and

@@ -854,19 +854,19 @@ func TestSchedulerNotificationsFollowInjectedLocale(t *testing.T) {
 	t.Run("recurring failure notice in en", func(t *testing.T) {
 		h := newHarness(day(testNow))
 		h.sched.locale = func() i18n.Lang { return i18n.En }
-			tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
-			h.recur.active = []*model.RecurringSchedule{{
-				ID:                "sched-1",
-				ClientID:          testClient.ID,
-				InvoiceTemplateID: tpl.ID,
-				Frequency:         "monthly",
-				NextSendDate:      day("2026-03-01"),
-				DeliveryMethod:    "email",
-				Active:            true,
-			}}
-			h.sender.failMethods["email"] = true
+		tpl := h.invoices.addTemplate(testTemplate(testClient.ID))
+		h.recur.active = []*model.RecurringSchedule{{
+			ID:                "sched-1",
+			ClientID:          testClient.ID,
+			InvoiceTemplateID: tpl.ID,
+			Frequency:         "monthly",
+			NextSendDate:      day("2026-03-01"),
+			DeliveryMethod:    "email",
+			Active:            true,
+		}}
+		h.sender.failMethods["email"] = true
 
-			_ = h.sched.Tick(ctx)
+		_ = h.sched.Tick(ctx)
 
 		texts := h.notifier.snapshot()
 		if len(texts) != 1 {
