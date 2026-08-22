@@ -109,6 +109,21 @@ func (r *InvoiceRepo) Get(ctx context.Context, id string) (*model.Invoice, error
 	return inv, nil
 }
 
+func (r *InvoiceRepo) GetByNumber(ctx context.Context, number int64) (*model.Invoice, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT `+invoiceCols+` FROM invoices WHERE number = ?`, number)
+	inv, err := scanInvoice(row.Scan)
+	if err != nil {
+		return nil, err
+	}
+	items, err := r.itemsFor(ctx, inv.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get invoice by number: %w", err)
+	}
+	inv.Items = items
+	return inv, nil
+}
+
 // UpdateStatus sets the status directly; transitions are any->any by design.
 // The draft->sent item requirement is enforced at Create because items are
 // immutable post-create.

@@ -144,6 +144,32 @@ func TestInvoiceGetLoadsItems(t *testing.T) {
 	}
 }
 
+func TestInvoiceGetByNumber(t *testing.T) {
+	r := openTestDB(t)
+	ctx := context.Background()
+	client := seedClient(t, r)
+
+	inv := newDraftInvoice(client.ID, &model.InvoiceItem{Description: "Work", UnitPrice: 100, Quantity: 1})
+	if err := r.Invoices.Create(ctx, inv); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := r.Invoices.GetByNumber(ctx, inv.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != inv.ID || got.Number != inv.Number {
+		t.Fatalf("got id=%s number=%d, want %s/%d", got.ID, got.Number, inv.ID, inv.Number)
+	}
+	if len(got.Items) != 1 || got.Items[0].Description != "Work" {
+		t.Fatalf("items not loaded: %+v", got.Items)
+	}
+
+	if _, err := r.Invoices.GetByNumber(ctx, 999); !errors.Is(err, repo.ErrNotFound) {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+}
+
 func TestInvoiceUpdateStatus(t *testing.T) {
 	r := openTestDB(t)
 	ctx := context.Background()
