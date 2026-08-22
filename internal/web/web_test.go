@@ -14,10 +14,33 @@ import (
 	"github.com/jesus/invoice-app/internal/auth"
 	"github.com/jesus/invoice-app/internal/db"
 	"github.com/jesus/invoice-app/internal/deliver"
+	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
 	"github.com/jesus/invoice-app/internal/web"
 )
+
+// seedInvoice creates a client and an invoice with the given status,
+// returning the invoice id for detail/list assertions.
+func seedInvoice(t *testing.T, repos *repo.Repos, status string) (string, string) {
+	t.Helper()
+	ctx := context.Background()
+	client := &model.Client{Name: "Acme"}
+	if _, err := repos.Clients.Create(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+	inv := &model.Invoice{
+		ClientID:  client.ID,
+		Status:    status,
+		IssueDate: dateUTC(2026, 8, 1),
+		DueDate:   dateUTC(2026, 9, 1),
+		Items:     []*model.InvoiceItem{{Description: "Serviço", UnitPrice: 1000, Quantity: 1}},
+	}
+	if err := repos.Invoices.Create(ctx, inv); err != nil {
+		t.Fatal(err)
+	}
+	return client.ID, inv.ID
+}
 
 // newTestEnv boots the real stack (sqlite repos + router + web handlers)
 // against a throwaway database and returns a live test server along with
@@ -204,5 +227,76 @@ func TestClientLanguageSelectFlow(t *testing.T) {
 	})
 	if respBad.StatusCode != http.StatusBadRequest {
 		t.Fatalf("invalid language: got %d want 400", respBad.StatusCode)
+	}
+}
+
+func TestInvoiceCancelButtonVisibility(t *testing.T) {
+	ts, repos := newTestEnv(t)
+
+	_, draftID := seedInvoice(t, repos, "draft")
+	_, sentID := seedInvoice(t, repos, "sent")
+	_, paidID := seedInvoice(t, repos, "paid")
+	_, cancelledID := seedInvoice(t, repos, "cancelled")
+
+	// Cancellable statuses (draft, sent) expose the cancel action.
+	for _, id := range []string{draftID, sentID} {
+		status, body := get(t, ts, "/faturas/"+id)
+		if status != http.StatusOK {
+			t.Fatalf("detail %s: got %d want 200", id, status)
+		}
+		if !strings.Contains(body, "/faturas/"+id+"/cancelar") {
+			t.Errorf("invoice %s should show the cancel action", id)
+		}
+	}
+
+	// Paid and cancelled must hide it.
+	for _, id := range []string{paidID, cancelledID} {
+		status, body := get(t, ts, "/faturas/"+id)
+		if status != http.StatusOK {
+			t.Fatalf("detail %s: got %d want 200", id, status)
+		}
+		if strings.Contains(body, "/faturas/"+id+"/cancelar") {
+			t.Errorf("invoice %s must not show the cancel action", id)
+		}
+	}
+}
+
+func TestRecurringToggleControlPresent(t *testing.T) {
+	ts, repos := newTestEnv(t)
+	ctx := context.Background()
+	client, err := repos.Clients.Create(ctx, &model.Client{Name: "Acme"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpl := &model.Invoice{
+		ClientID:  client.ID,
+		Status:    "draft",
+		IssueDate: dateUTC(2026, 8, 1),
+		DueDate:   dateUTC(2026, 9, 1),
+		Items:     []*model.InvoiceItem{{Description: "Serviço", UnitPrice: 1000, Quantity: 1}},
+	}
+	if err := repos.Invoices.Create(ctx, tpl); err != nil {
+		t.Fatal(err)
+	}
+	sched := &model.RecurringSchedule{
+		ClientID:          client.ID,
+		InvoiceTemplateID: tpl.ID,
+		Frequency:         "monthly",
+		NextSendDate:      dateUTC(2026, 9, 1),
+		DeliveryMethod:    "email",
+	}
+	if err := repos.Recurring.Create(ctx, sched); err != nil {
+		t.Fatal(err)
+	}
+
+	status, body := get(t, ts, "/recorrentes")
+	if status != http.StatusOK {
+		t.Fatalf("recorrentes: got %d want 200", status)
+	}
+	if !strings.Contains(body, "/recorrentes/"+sched.ID+"/alternar") {
+		t.Error("recurring list should expose the pause/resume control")
+	}
+	if !strings.Contains(body, "Desativar") {
+		t.Error("active schedule should offer a Disable control")
 	}
 }

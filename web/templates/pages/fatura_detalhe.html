@@ -59,6 +59,12 @@
 <button type="submit">{{T "detail.mark_paid"}}</button>
 </form>
 {{end}}
+{{if .CanCancel}}
+<form method="post" action="/faturas/{{.Inv.ID}}/cancelar" style="display:inline;" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
+{{template "csrfField" .}}
+<button type="submit" class="btn-danger">{{T "invoices.cancel"}}</button>
+</form>
+{{end}}
 </div>
 <div id="send-resultados" aria-live="polite"></div>
 {{else}}

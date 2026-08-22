@@ -13,20 +13,24 @@
 <div class="panel">
 <table>
 <thead>
-<tr><th>{{T "col.number"}}</th><th>{{T "col.client"}}</th><th>{{T "col.issue_date"}}</th><th>{{T "col.due_date"}}</th><th class="num">{{T "col.total"}}</th><th>{{T "col.status"}}</th></tr>
-</thead>
-<tbody>
-{{if .Rows}}
-{{range .Rows}}
-<tr>
-<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
-<td>{{.ClientName}}</td>
-<td>{{dtbr .Issue}}</td>
-<td>{{dtbr .Due}}</td>
-<td class="num">{{brl .Total}}</td>
-<td>{{template "statusBadge" .}}</td>
-</tr>
-{{end}}
+		<tr><th>{{T "col.number"}}</th><th>{{T "col.client"}}</th><th>{{T "col.issue_date"}}</th><th>{{T "col.due_date"}}</th><th class="num">{{T "col.total"}}</th><th>{{T "col.status"}}</th><th></th></tr>
+	</thead>
+	<tbody>
+	{{if .Rows}}
+	{{range .Rows}}
+	<tr>
+		<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+		<td>{{.ClientName}}</td>
+		<td>{{dtbr .Issue}}</td>
+		<td>{{dtbr .Due}}</td>
+		<td class="num">{{brl .Total}}</td>
+		<td>{{template "statusBadge" .}}</td>
+		<td>{{if .CanCancel}}<form method="post" action="/faturas/{{.ID}}/cancelar" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
+		{{template "csrfField" .}}
+		<button type="submit" class="btn-danger">{{T "invoices.cancel"}}</button>
+		</form>{{end}}</td>
+	</tr>
+	{{end}}
 {{else}}
 <tr><td colspan="6" class="muted">{{T "invoices.empty"}}</td></tr>
 {{end}}

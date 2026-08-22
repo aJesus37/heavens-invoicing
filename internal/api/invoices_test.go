@@ -283,3 +283,31 @@ func TestSendInvoiceValidationAndFailures(t *testing.T) {
 		t.Fatalf("status = %q after failed send, want draft", got.Status)
 	}
 }
+
+func TestCancelInvoiceEndpoint(t *testing.T) {
+	env := newTestEnv(t)
+	h := env.handler
+	client := mustCreateClient(t, env.repos, "Acme")
+	inv := mustCreateInvoiceViaAPI(t, h, client.ID)
+
+	// draft -> cancelled
+	rec := do(t, h, "POST", "/api/invoices/"+inv.ID+"/cancel", nil)
+	assertStatus(t, rec, 200, "cancel draft")
+	if got := decode[invoiceShape](t, rec); got.Status != "cancelled" {
+		t.Fatalf("status = %q, want cancelled", got.Status)
+	}
+
+	// cancelling again (already cancelled) is a no-op success, not a 409.
+	again := do(t, h, "POST", "/api/invoices/"+inv.ID+"/cancel", nil)
+	assertStatus(t, again, 200, "cancel already-cancelled")
+
+	// missing invoice -> 404
+	assertStatus(t, do(t, h, "POST", "/api/invoices/nope/cancel", nil), 404, "cancel unknown")
+
+	// paid invoice -> 409
+	paid := mustCreateInvoiceViaAPI(t, h, client.ID)
+	if rec := do(t, h, "POST", "/api/invoices/"+paid.ID+"/mark-paid", nil); rec.Code != 200 {
+		t.Fatalf("mark-paid: %d", rec.Code)
+	}
+	assertStatus(t, do(t, h, "POST", "/api/invoices/"+paid.ID+"/cancel", nil), 409, "cancel paid")
+}
