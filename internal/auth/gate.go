@@ -15,6 +15,7 @@ const (
 	healthzPath  = "/healthz"
 	staticPrefix = "/static/"
 	loginPath    = "/login"
+	faviconPath  = "/favicon.ico"
 )
 
 // stateChanging reports whether method mutates server state and therefore
@@ -36,8 +37,10 @@ func (m *Manager) Gate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
-		// Public by design: liveness probes and stylesheet assets.
-		if path == healthzPath || strings.HasPrefix(path, staticPrefix) {
+		// Public by design: liveness probes, stylesheet assets and the
+		// favicon probe (dead-ended by the web mux; letting it fall
+		// through would bounce anonymous visitors into /login).
+		if path == healthzPath || path == faviconPath || strings.HasPrefix(path, staticPrefix) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -60,5 +61,64 @@ func TestWhatsAppConnectCSRFNotBlocked(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST /configuracoes/whatsapp/conectar: got %d want 200 (fragment)", resp.StatusCode)
+	}
+}
+
+// TestLoginDoesNotRotateCSRFCookie is a regression test for the bug where
+// every GET /login minted a fresh CSRF token. Any incidental late hit on
+// /login (favicon redirect chains, prefetch, a second tab) then rotated the
+// cookie out from under an already-rendered form, whose hidden field still
+// held the old token — so submitting always failed with "security check
+// failed". The form and cookie must stay consistent across re-loads.
+func TestLoginDoesNotRotateCSRFCookie(t *testing.T) {
+	ts, _, _ := newAuthEnv(t)
+
+	first := getReq(t, ts, "/login")
+	c1 := cookieNamed(first, "csrf_token")
+	body := readBody(first)
+	if c1 == nil {
+		t.Fatal("first GET /login must plant a CSRF cookie")
+	}
+	if !strings.Contains(body, `value="`+c1.Value+`"`) {
+		t.Fatal("first load: hidden field must match the planted cookie")
+	}
+
+	// Second load carrying the existing cookie: no rotation allowed.
+	second := getReq(t, ts, "/login", c1)
+	defer second.Body.Close()
+	for _, ck := range second.Cookies() {
+		if ck.Name == "csrf_token" && ck.Value != c1.Value {
+			t.Fatalf("second GET /login rotated the CSRF cookie: %s -> %s", c1.Value[:8], ck.Value[:8])
+		}
+	}
+	secondBody := readBody(second)
+	if !strings.Contains(secondBody, `value="`+c1.Value+`"`) {
+		t.Fatal("second load: hidden field must reuse the existing cookie value")
+	}
+
+	// The setup POST from that second load must be accepted.
+	set := doForm(t, ts, http.MethodPost, "/login", url.Values{
+		"password":   {"supersecret1"},
+		"confirm":    {"supersecret1"},
+		"csrf_token": {c1.Value},
+	}, c1)
+	defer set.Body.Close()
+	if set.StatusCode != http.StatusSeeOther {
+		t.Fatalf("setup POST after re-load: got %d want 303 (cookie/field mismatch?)", set.StatusCode)
+	}
+}
+
+// TestFaviconDoesNotChaseIntoLogin pins the favicon dead-end: without it,
+// GET /favicon.ico fell through to the dashboard route and bounced anonymous
+// visitors into /login, which browsers silently followed.
+func TestFaviconDoesNotChaseIntoLogin(t *testing.T) {
+	ts, _, _ := newAuthEnv(t)
+	resp := getReq(t, ts, "/favicon.ico")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("GET /favicon.ico: got %d want 204", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "" {
+		t.Fatalf("favicon redirected to %q — it must not chase into /login", loc)
 	}
 }

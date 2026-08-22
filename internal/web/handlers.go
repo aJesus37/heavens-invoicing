@@ -61,6 +61,14 @@ func (h *Handlers) Mux() *http.ServeMux {
 
 	mux.HandleFunc("GET /{$}", h.dashboard)
 	mux.Handle("GET /static/", http.StripPrefix("/static", h.static))
+	// Dead-end the favicon probe: without this it falls through to the
+	// dashboard route, which for anonymous visitors 303s into /login —
+	// and browsers silently follow, re-rendering the login form (rotating
+	// its CSRF cookie out from under the page in a second tab scenario)
+	// while spamming console errors.
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 
 	mux.HandleFunc("GET /login", h.loginForm)
 	mux.HandleFunc("POST /login", h.loginSubmit)

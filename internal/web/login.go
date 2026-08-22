@@ -22,14 +22,26 @@ type loginData struct {
 // while no password is configured, the sign-in form afterwards.
 func (h *Handlers) loginForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	// Plant the CSRF double-submit cookie here so the form POST can prove
-	// it came from this page rather than a forged cross-site request.
+	// Reuse the double-submit cookie when the browser already holds one:
+	// incidental late hits on GET /login (favicon redirect chains,
+	// prefetch, a second tab) must NOT rotate the token out from under a
+	// form that is already on screen — the rendered hidden field would no
+	// longer match the cookie and the POST would fail as forged. Minting
+	// happens only when there is nothing to reuse.
+	if c, err := r.Cookie(auth.CookieCSRF); err == nil && c.Value != "" {
+		h.serveLoginForm(w, r, lang, c.Value)
+		return
+	}
 	csrf, err := h.auth.IssueCSRFToken(w)
 	if err != nil {
 		log.Printf("web: issue csrf on login: %v", err)
 		failInternal(w, lang)
 		return
 	}
+	h.serveLoginForm(w, r, lang, csrf)
+}
+
+func (h *Handlers) serveLoginForm(w http.ResponseWriter, r *http.Request, lang i18n.Lang, csrf string) {
 	setup, err := h.auth.NeedsSetup(r.Context())
 	if err != nil {
 		writeRepoErr(w, lang, err)
