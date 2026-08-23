@@ -38,11 +38,15 @@ func (d *WhatsAppDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	}
 	num := invoiceNumber(inv)
 	lang := clientLang(c)
+	pix := pixKeyFor(inv, d.pixFallback)
 	caption := invoiceCaption(lang, c, inv, d.businessName)
+	if pix != "" {
+		caption += "\n\n" + pixLabel(lang)
+	}
 	if err := d.api.SendDocument(ctx, jid, "fatura-"+num+".pdf", pdf, caption); err != nil {
 		return err
 	}
-	if pix := pixKeyFor(inv, d.pixFallback); pix != "" {
+	if pix != "" {
 		if err := d.api.SendMessage(ctx, jid, pixMessage(lang, pix)); err != nil {
 			return err
 		}
@@ -56,9 +60,20 @@ func (d *WhatsAppDeliverer) SendReminder(ctx context.Context, c model.Client, in
 		return err
 	}
 	lang := clientLang(c)
+	pix := pixKeyFor(inv, d.pixFallback)
 	text := reminderText(lang, inv)
-	text += pixLine(lang, pixKeyFor(inv, d.pixFallback))
-	return d.api.SendMessage(ctx, jid, text)
+	if pix != "" {
+		text += "\n\n" + pixLabel(lang)
+	}
+	if err := d.api.SendMessage(ctx, jid, text); err != nil {
+		return err
+	}
+	if pix != "" {
+		if err := d.api.SendMessage(ctx, jid, pixMessage(lang, pix)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // whatsappJID resolves and validates the client's phone number and builds

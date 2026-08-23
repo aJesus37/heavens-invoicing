@@ -77,8 +77,11 @@ func TestTelegramSendInvoice(t *testing.T) {
 	for _, want := range []string{"Fatura #000001", "Acme Ltda"} {
 		assertContains(t, call.caption, want)
 	}
-	if strings.Contains(call.caption, "pix@fallback.com") || strings.Contains(call.caption, "PIX") {
-		t.Fatalf("caption must not contain pix, got %q", call.caption)
+	if !strings.Contains(call.caption, "Chave PIX:") {
+		t.Fatalf("caption must contain pix label, got %q", call.caption)
+	}
+	if strings.Contains(call.caption, "pix@fallback.com") {
+		t.Fatalf("caption must not contain pix key, got %q", call.caption)
 	}
 	pixMsg := api.calls[1]
 	if pixMsg.method != "SendMessage" {
@@ -197,11 +200,14 @@ func TestTelegramPIXKeyPrecedence(t *testing.T) {
 		if len(api.calls) != 2 {
 			t.Fatalf("want 2 calls, got %d", len(api.calls))
 		}
-		if strings.Contains(api.calls[0].caption, invoicePix) || strings.Contains(api.calls[0].caption, "Chave PIX") {
-			t.Fatalf("caption must not contain pix, got %q", api.calls[0].caption)
+		if strings.Contains(api.calls[0].caption, invoicePix) {
+			t.Fatalf("caption must not contain pix key, got %q", api.calls[0].caption)
 		}
-		if strings.Contains(api.calls[0].caption, fallbackPix) {
-			t.Fatalf("fallback must not appear in caption when invoice has its own key: %q", api.calls[0].caption)
+		if !strings.Contains(api.calls[0].caption, "Chave PIX:") {
+			t.Fatalf("caption must contain pix label, got %q", api.calls[0].caption)
+		}
+		if strings.Contains(api.calls[0].caption, fallbackPix) && fallbackPix != invoicePix {
+			t.Fatalf("fallback key must not appear in caption: %q", api.calls[0].caption)
 		}
 		assertContains(t, api.calls[1].text, invoicePix)
 		if strings.Contains(api.calls[1].text, fallbackPix) && fallbackPix != invoicePix {
@@ -210,6 +216,14 @@ func TestTelegramPIXKeyPrecedence(t *testing.T) {
 		if api.calls[1].method != "SendMessage" {
 			t.Fatalf("second call must be SendMessage, got %q", api.calls[1].method)
 		}
+		if err := d.SendReminder(context.Background(), tgClient(&chatID), invoiceWithKey()); err != nil {
+			t.Fatal(err)
+		}
+		if len(api.calls) != 4 {
+			t.Fatalf("after reminder: want 4 calls (invoice 2 + reminder 2), got %d", len(api.calls))
+		}
+		assertContains(t, api.calls[2].text, "Chave PIX:")
+		assertContains(t, api.calls[3].text, invoicePix)
 	})
 
 	t.Run("caption falls back when invoice has none", func(t *testing.T) {
@@ -223,8 +237,11 @@ func TestTelegramPIXKeyPrecedence(t *testing.T) {
 		if len(api.calls) != 2 {
 			t.Fatalf("want 2 calls, got %d", len(api.calls))
 		}
-		if strings.Contains(api.calls[0].caption, "Chave PIX") || strings.Contains(api.calls[0].caption, fallbackPix) {
-			t.Fatalf("caption must not contain pix line, got %q", api.calls[0].caption)
+		if strings.Contains(api.calls[0].caption, fallbackPix) {
+			t.Fatalf("caption must not contain pix key, got %q", api.calls[0].caption)
+		}
+		if !strings.Contains(api.calls[0].caption, "Chave PIX:") {
+			t.Fatalf("caption must contain pix label, got %q", api.calls[0].caption)
 		}
 		assertContains(t, api.calls[1].text, fallbackPix)
 		if api.calls[1].method != "SendMessage" {
@@ -240,7 +257,11 @@ func TestTelegramPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendReminder(context.Background(), tgClient(&chatID), invoiceWithKey()); err != nil {
 			t.Fatal(err)
 		}
-		assertContains(t, api.calls[0].text, "Chave PIX: "+invoicePix)
+		if len(api.calls) != 2 {
+			t.Fatalf("want 2 calls (label + key), got %d", len(api.calls))
+		}
+		assertContains(t, api.calls[0].text, "Chave PIX:")
+		assertContains(t, api.calls[1].text, invoicePix)
 		if strings.Contains(api.calls[0].text, fallbackPix) {
 			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[0].text)
 		}

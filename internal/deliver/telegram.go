@@ -36,11 +36,15 @@ func (d *TelegramDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	}
 	num := invoiceNumber(inv)
 	lang := clientLang(c)
+	pix := pixKeyFor(inv, d.pixFallback)
 	caption := invoiceCaption(lang, c, inv, d.businessName)
+	if pix != "" {
+		caption += "\n\n" + pixLabel(lang)
+	}
 	if err := d.api.SendDocument(ctx, chatID, "fatura-"+num+".pdf", pdf, caption); err != nil {
 		return err
 	}
-	if pix := pixKeyFor(inv, d.pixFallback); pix != "" {
+	if pix != "" {
 		if err := d.api.SendMessage(ctx, chatID, pixMessage(lang, pix)); err != nil {
 			return err
 		}
@@ -54,9 +58,20 @@ func (d *TelegramDeliverer) SendReminder(ctx context.Context, c model.Client, in
 		return err
 	}
 	lang := clientLang(c)
+	pix := pixKeyFor(inv, d.pixFallback)
 	text := reminderText(lang, inv)
-	text += pixLine(lang, pixKeyFor(inv, d.pixFallback))
-	return d.api.SendMessage(ctx, chatID, text)
+	if pix != "" {
+		text += "\n\n" + pixLabel(lang)
+	}
+	if err := d.api.SendMessage(ctx, chatID, text); err != nil {
+		return err
+	}
+	if pix != "" {
+		if err := d.api.SendMessage(ctx, chatID, pixMessage(lang, pix)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func telegramChatID(c model.Client) (string, error) {

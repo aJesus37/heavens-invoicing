@@ -81,6 +81,12 @@ func pixMessage(lang i18n.Lang, key string) string {
 	return i18n.T(lang, "deliver.pix_message", key)
 }
 
+// pixLabel returns the label that precedes the separate PIX message, e.g.
+// "Chave PIX:" / "PIX key:". Empty when no label needed.
+func pixLabel(lang i18n.Lang) string {
+	return i18n.T(lang, "deliver.pix_label")
+}
+
 // emailPIXSection renders the PIX paragraph embedded into email bodies
 // (double newline separated); empty key means no section.
 func emailPIXSection(lang i18n.Lang, key string) string {

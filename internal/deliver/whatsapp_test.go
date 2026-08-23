@@ -77,9 +77,12 @@ func TestWhatsAppSendInvoice(t *testing.T) {
 	for _, want := range []string{"Fatura #000001", "Acme Ltda"} {
 		assertContains(t, call.caption, want)
 	}
-	// Caption must NOT contain the pix key; it is sent as a second copyable message.
-	if strings.Contains(call.caption, "pix@fallback.com") || strings.Contains(call.caption, "PIX") {
-		t.Fatalf("caption must not contain pix, got %q", call.caption)
+	// Caption must contain pix label but NOT the key; key is sent as second copyable message.
+	if !strings.Contains(call.caption, "Chave PIX:") {
+		t.Fatalf("caption must contain pix label, got %q", call.caption)
+	}
+	if strings.Contains(call.caption, "pix@fallback.com") {
+		t.Fatalf("caption must not contain pix key, got %q", call.caption)
 	}
 	pixMsg := api.calls[1]
 	if pixMsg.method != "SendMessage" {
@@ -198,11 +201,14 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if len(api.calls) != 2 {
 			t.Fatalf("SendInvoice: want 2 calls (document + pix), got %d", len(api.calls))
 		}
-		if strings.Contains(api.calls[0].caption, invoicePix) || strings.Contains(api.calls[0].caption, "Chave PIX") {
-			t.Fatalf("caption must not contain pix, got %q", api.calls[0].caption)
+		if strings.Contains(api.calls[0].caption, invoicePix) {
+			t.Fatalf("caption must not contain pix key, got %q", api.calls[0].caption)
 		}
-		if strings.Contains(api.calls[0].caption, fallbackPix) {
-			t.Fatalf("fallback must not appear in caption when invoice has its own key: %q", api.calls[0].caption)
+		if !strings.Contains(api.calls[0].caption, "Chave PIX:") {
+			t.Fatalf("caption must contain pix label, got %q", api.calls[0].caption)
+		}
+		if strings.Contains(api.calls[0].caption, fallbackPix) && fallbackPix != invoicePix {
+			t.Fatalf("fallback key must not appear in caption: %q", api.calls[0].caption)
 		}
 		assertContains(t, api.calls[1].text, invoicePix)
 		if strings.Contains(api.calls[1].text, fallbackPix) && fallbackPix != invoicePix {
@@ -215,10 +221,11 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendReminder(context.Background(), waClient(&phone), invoiceWithKey()); err != nil {
 			t.Fatal(err)
 		}
-		if len(api.calls) != 3 {
-			t.Fatalf("after reminder: want 3 calls, got %d", len(api.calls))
+		if len(api.calls) != 4 {
+			t.Fatalf("after reminder: want 4 calls (invoice 2 + reminder 2), got %d", len(api.calls))
 		}
-		assertContains(t, api.calls[2].text, "Chave PIX: "+invoicePix)
+		assertContains(t, api.calls[2].text, "Chave PIX:")
+		assertContains(t, api.calls[3].text, invoicePix)
 	})
 
 	t.Run("falls back when invoice has none", func(t *testing.T) {
@@ -231,8 +238,11 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if len(api.calls) != 2 {
 			t.Fatalf("SendInvoice: want 2 calls, got %d", len(api.calls))
 		}
-		if strings.Contains(api.calls[0].caption, "Chave PIX") || strings.Contains(api.calls[0].caption, fallbackPix) {
-			t.Fatalf("caption must not contain pix line, got %q", api.calls[0].caption)
+		if strings.Contains(api.calls[0].caption, fallbackPix) {
+			t.Fatalf("caption must not contain pix key, got %q", api.calls[0].caption)
+		}
+		if !strings.Contains(api.calls[0].caption, "Chave PIX:") {
+			t.Fatalf("caption must contain pix label, got %q", api.calls[0].caption)
 		}
 		assertContains(t, api.calls[1].text, fallbackPix)
 		if api.calls[1].method != "SendMessage" {
@@ -242,10 +252,11 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
 			t.Fatal(err)
 		}
-		if len(api.calls) != 3 {
-			t.Fatalf("after reminder: want 3 calls, got %d", len(api.calls))
+		if len(api.calls) != 4 {
+			t.Fatalf("after reminder: want 4 calls (invoice 2 + reminder 2), got %d", len(api.calls))
 		}
-		assertContains(t, api.calls[2].text, "Chave PIX: "+fallbackPix)
+		assertContains(t, api.calls[2].text, "Chave PIX:")
+		assertContains(t, api.calls[3].text, fallbackPix)
 	})
 
 	t.Run("omitted entirely when no key anywhere", func(t *testing.T) {

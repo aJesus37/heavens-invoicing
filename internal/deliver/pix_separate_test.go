@@ -34,10 +34,8 @@ func TestPixAsSeparateMessage(t *testing.T) {
 		if strings.Contains(doc.caption, fallbackPix) {
 			t.Fatalf("caption must NOT contain pix key, got %q", doc.caption)
 		}
-		if strings.Contains(doc.caption, "PIX") || strings.Contains(doc.caption, "Chave PIX") {
-			// Ensure no pix line leaked into caption.
-			// Caption may legitimately contain no PIX at all when pix is sent separately.
-			t.Fatalf("caption must not contain PIX line, got %q", doc.caption)
+		if !strings.Contains(doc.caption, "Chave PIX:") && !strings.Contains(doc.caption, "PIX key:") {
+			t.Fatalf("caption must contain pix label, got %q", doc.caption)
 		}
 		msg := api.calls[1]
 		if msg.method != "SendMessage" {
@@ -90,8 +88,8 @@ func TestPixAsSeparateMessage(t *testing.T) {
 		if strings.Contains(doc.caption, fallbackPix) {
 			t.Fatalf("caption must NOT contain pix key, got %q", doc.caption)
 		}
-		if strings.Contains(doc.caption, "PIX") || strings.Contains(doc.caption, "Chave PIX") {
-			t.Fatalf("caption must not contain PIX line, got %q", doc.caption)
+		if !strings.Contains(doc.caption, "Chave PIX:") && !strings.Contains(doc.caption, "PIX key:") {
+			t.Fatalf("caption must contain pix label, got %q", doc.caption)
 		}
 		msg := api.calls[1]
 		if msg.method != "SendMessage" {
@@ -127,22 +125,25 @@ func TestPixAsSeparateMessage(t *testing.T) {
 	})
 }
 
-// TestPixSeparateDoesNotAffectReminder confirms reminders still behave as before
-// (pix line stays inline) – they are single-message sends. If we later decide
-// to split reminders too, this test will need updating.
+// TestPixSeparateDoesNotAffectReminder confirms reminders now also send pix as separate message.
 func TestPixSeparateDoesNotAffectReminder(t *testing.T) {
-	// Reminder with pix should still be single SendMessage containing pix line
 	api := &fakeWhatsApp{}
 	d := deliver.NewWhatsApp(api, "pix@fallback.com")
 	phone := "+5511999999999"
 	if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
 		t.Fatal(err)
 	}
-	if len(api.calls) != 1 {
-		t.Fatalf("reminder: want 1 call, got %d", len(api.calls))
+	if len(api.calls) != 2 {
+		t.Fatalf("reminder: want 2 calls (text + pix), got %d", len(api.calls))
 	}
-	if !strings.Contains(api.calls[0].text, "pix@fallback.com") {
-		t.Fatalf("reminder text must contain pix line, got %q", api.calls[0].text)
+	if !strings.Contains(api.calls[0].text, "Chave PIX:") && !strings.Contains(api.calls[0].text, "PIX key:") {
+		t.Fatalf("reminder first message must contain pix label, got %q", api.calls[0].text)
+	}
+	if strings.Contains(api.calls[0].text, "pix@fallback.com") {
+		t.Fatalf("reminder first message must not contain pix key, got %q", api.calls[0].text)
+	}
+	if !strings.Contains(api.calls[1].text, "pix@fallback.com") {
+		t.Fatalf("reminder second message must contain pix key, got %q", api.calls[1].text)
 	}
 	// Ensure test helper exists for model
 	_ = model.Client{}

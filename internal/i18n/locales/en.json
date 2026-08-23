@@ -96,6 +96,7 @@
   "deliver.caption_invoice": "Invoice #%s for %s",
   "deliver.caption_item": "- %s (%d × %s) = %s",
   "deliver.caption_total": "Total: %s",
+  "deliver.pix_label": "PIX key:",
   "deliver.pix_line": "\nPIX key: %s",
   "deliver.pix_message": "%s",
   "deliver.reminder_text": "Reminder: invoice #%s, due on %s, is still pending.",

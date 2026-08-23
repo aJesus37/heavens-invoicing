@@ -96,6 +96,7 @@
   "deliver.caption_invoice": "Fatura #%s para %s",
   "deliver.caption_item": "- %s (%d × %s) = %s",
   "deliver.caption_total": "Total: %s",
+  "deliver.pix_label": "Chave PIX:",
   "deliver.pix_line": "\nChave PIX: %s",
   "deliver.pix_message": "%s",
   "deliver.reminder_text": "Lembrete: a fatura #%s, com vencimento em %s, ainda está pendente.",
