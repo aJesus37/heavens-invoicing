@@ -10,34 +10,30 @@ import (
 	"github.com/jesus/invoice-app/internal/model"
 )
 
-func TestOldPortugueseRoutesRedirect(t *testing.T) {
+func TestOldPortugueseRoutesAreGone(t *testing.T) {
 	ts, _ := newTestEnv(t)
 
-	exact := map[string]string{
-		"/clientes":                      "/clients",
-		"/clientes/novo":                 "/clients/new",
-		"/produtos":                      "/products",
-		"/produtos/novo":                 "/products/new",
-		"/faturas":                       "/invoices",
-		"/faturas/nova":                  "/invoices/new",
-		"/recorrentes":                   "/recurring",
-		"/recorrentes/novo":              "/recurring/new",
-		"/configuracoes":                 "/settings",
-		"/configuracoes/whatsapp/status": "/settings/whatsapp/status",
-		"/configuracoes/whatsapp/qr.png": "/settings/whatsapp/qr.png",
+	exactGetPaths := []string{
+		"/clientes",
+		"/clientes/novo",
+		"/produtos",
+		"/produtos/novo",
+		"/faturas",
+		"/faturas/nova",
+		"/recorrentes",
+		"/recorrentes/novo",
+		"/configuracoes",
+		"/configuracoes/whatsapp/status",
+		"/configuracoes/whatsapp/qr.png",
 	}
-	for old, wantNew := range exact {
+	for _, old := range exactGetPaths {
 		resp, err := ts.Client().Get(ts.URL + old)
 		if err != nil {
 			t.Fatalf("GET %s: %v", old, err)
 		}
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusMovedPermanently {
-			t.Errorf("GET %s: got %d want 301 (Location should be %s, got %q)", old, resp.StatusCode, wantNew, resp.Header.Get("Location"))
-		}
-		loc := resp.Header.Get("Location")
-		if loc != wantNew {
-			t.Errorf("GET %s: Location = %q want %q", old, loc, wantNew)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s: got %d want 404", old, resp.StatusCode)
 		}
 	}
 
@@ -45,24 +41,23 @@ func TestOldPortugueseRoutesRedirect(t *testing.T) {
 	cases := []struct {
 		method string
 		old    string
-		want   string
 	}{
-		{"GET", "/clientes/" + id, "/clients/" + id},
-		{"POST", "/clientes/" + id, "/clients/" + id},
-		{"GET", "/produtos/" + id + "/editar", "/products/" + id + "/edit"},
-		{"POST", "/produtos/" + id + "/editar", "/products/" + id + "/edit"},
-		{"GET", "/faturas/" + id, "/invoices/" + id},
-		{"POST", "/faturas/" + id + "/enviar", "/invoices/" + id + "/send"},
-		{"POST", "/faturas/" + id + "/marcar-paga", "/invoices/" + id + "/mark-paid"},
-		{"POST", "/faturas/" + id + "/cancelar", "/invoices/" + id + "/cancel"},
-		{"POST", "/recorrentes/" + id + "/excluir", "/recurring/" + id + "/delete"},
-		{"POST", "/recorrentes/" + id + "/alternar", "/recurring/" + id + "/toggle"},
-		{"POST", "/configuracoes", "/settings"},
-		{"POST", "/configuracoes/whatsapp/conectar", "/settings/whatsapp/connect"},
-		{"POST", "/clientes/novo", "/clients/new"},
-		{"POST", "/produtos/novo", "/products/new"},
-		{"POST", "/faturas/nova", "/invoices/new"},
-		{"POST", "/recorrentes/novo", "/recurring/new"},
+		{"GET", "/clientes/" + id},
+		{"POST", "/clientes/" + id},
+		{"GET", "/produtos/" + id + "/editar"},
+		{"POST", "/produtos/" + id + "/editar"},
+		{"GET", "/faturas/" + id},
+		{"POST", "/faturas/" + id + "/enviar"},
+		{"POST", "/faturas/" + id + "/marcar-paga"},
+		{"POST", "/faturas/" + id + "/cancelar"},
+		{"POST", "/recorrentes/" + id + "/excluir"},
+		{"POST", "/recorrentes/" + id + "/alternar"},
+		{"POST", "/configuracoes"},
+		{"POST", "/configuracoes/whatsapp/conectar"},
+		{"POST", "/clientes/novo"},
+		{"POST", "/produtos/novo"},
+		{"POST", "/faturas/nova"},
+		{"POST", "/recorrentes/novo"},
 	}
 	for _, tc := range cases {
 		var resp *http.Response
@@ -76,12 +71,8 @@ func TestOldPortugueseRoutesRedirect(t *testing.T) {
 			t.Fatalf("%s %s: %v", tc.method, tc.old, err)
 		}
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusMovedPermanently {
-			t.Errorf("%s %s: got %d want 301 (want Location %q, got %q)", tc.method, tc.old, resp.StatusCode, tc.want, resp.Header.Get("Location"))
-		}
-		loc := resp.Header.Get("Location")
-		if loc != tc.want {
-			t.Errorf("%s %s: Location = %q want %q", tc.method, tc.old, loc, tc.want)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("%s %s: got %d want 404", tc.method, tc.old, resp.StatusCode)
 		}
 	}
 }
