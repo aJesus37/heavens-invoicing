@@ -19,6 +19,8 @@ import (
 	"github.com/ajesus37/heavens-invoicing/internal/web"
 )
 
+var version = "dev"
+
 const (
 	dataDir = "./data"
 )
