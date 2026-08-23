@@ -73,9 +73,12 @@ func setupWhatsApp(ctx context.Context, conn *sql.DB) *whatsapp.Session {
 	return session
 }
 
-func setupWhatsAppDeliverer(s *whatsapp.Session, pixFallback string) deliver.Deliverer {
+func setupWhatsAppDeliverer(s *whatsapp.Session, pixFallback, businessName string) deliver.Deliverer {
 	if s == nil {
 		return nil
+	}
+	if businessName != "" {
+		return deliver.NewWhatsAppWithBusiness(s, pixFallback, businessName)
 	}
 	return deliver.NewWhatsApp(s, pixFallback)
 }

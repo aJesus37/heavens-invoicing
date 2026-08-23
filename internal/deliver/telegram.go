@@ -14,12 +14,17 @@ type TelegramAPI interface {
 }
 
 type TelegramDeliverer struct {
-	api         TelegramAPI
-	pixFallback string
+	api          TelegramAPI
+	pixFallback  string
+	businessName string
 }
 
 func NewTelegram(api TelegramAPI, pixFallback string) *TelegramDeliverer {
 	return &TelegramDeliverer{api: api, pixFallback: pixFallback}
+}
+
+func NewTelegramWithBusiness(api TelegramAPI, pixFallback, businessName string) *TelegramDeliverer {
+	return &TelegramDeliverer{api: api, pixFallback: pixFallback, businessName: businessName}
 }
 
 func (d *TelegramDeliverer) Name() string { return "telegram" }
@@ -31,7 +36,7 @@ func (d *TelegramDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	}
 	num := invoiceNumber(inv)
 	lang := clientLang(c)
-	caption := invoiceCaption(lang, c, inv)
+	caption := invoiceCaption(lang, c, inv, d.businessName)
 	caption += pixLine(lang, pixKeyFor(inv, d.pixFallback))
 	return d.api.SendDocument(ctx, chatID, "fatura-"+num+".pdf", pdf, caption)
 }

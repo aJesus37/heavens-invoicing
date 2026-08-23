@@ -16,12 +16,17 @@ type WhatsAppAPI interface {
 }
 
 type WhatsAppDeliverer struct {
-	api         WhatsAppAPI
-	pixFallback string
+	api          WhatsAppAPI
+	pixFallback  string
+	businessName string
 }
 
 func NewWhatsApp(api WhatsAppAPI, pixFallback string) *WhatsAppDeliverer {
 	return &WhatsAppDeliverer{api: api, pixFallback: pixFallback}
+}
+
+func NewWhatsAppWithBusiness(api WhatsAppAPI, pixFallback, businessName string) *WhatsAppDeliverer {
+	return &WhatsAppDeliverer{api: api, pixFallback: pixFallback, businessName: businessName}
 }
 
 func (d *WhatsAppDeliverer) Name() string { return "whatsapp" }
@@ -33,7 +38,7 @@ func (d *WhatsAppDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	}
 	num := invoiceNumber(inv)
 	lang := clientLang(c)
-	caption := invoiceCaption(lang, c, inv)
+	caption := invoiceCaption(lang, c, inv, d.businessName)
 	caption += pixLine(lang, pixKeyFor(inv, d.pixFallback))
 	return d.api.SendDocument(ctx, jid, "fatura-"+num+".pdf", pdf, caption)
 }

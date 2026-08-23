@@ -2,10 +2,12 @@ package deliver
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
+	"github.com/jesus/invoice-app/internal/pdf"
 )
 
 // clientLang resolves the language for texts addressed to the client,
@@ -27,9 +29,31 @@ func formatDate(t time.Time) string {
 }
 
 // invoiceCaption is the document caption sent alongside the PDF on
-// messaging channels (WhatsApp, Telegram).
-func invoiceCaption(lang i18n.Lang, c model.Client, inv model.Invoice) string {
-	return i18n.T(lang, "deliver.caption_invoice", invoiceNumber(inv), c.Name)
+// messaging channels (WhatsApp, Telegram). It now includes the sender
+// company, itemized products with quantities and prices, and the grand total
+// so the message is readable without opening the PDF.
+func invoiceCaption(lang i18n.Lang, c model.Client, inv model.Invoice, businessName string) string {
+	var b strings.Builder
+	if strings.TrimSpace(businessName) != "" {
+		b.WriteString(i18n.T(lang, "deliver.caption_company", strings.TrimSpace(businessName)))
+		b.WriteString("\n")
+	}
+	b.WriteString(i18n.T(lang, "deliver.caption_invoice", invoiceNumber(inv), c.Name))
+	if len(inv.Items) > 0 {
+		b.WriteString("\n")
+		for _, it := range inv.Items {
+			b.WriteString("\n")
+			b.WriteString(i18n.T(lang, "deliver.caption_item",
+				it.Description,
+				it.Quantity,
+				pdf.FormatBRL(it.UnitPrice),
+				pdf.FormatBRL(it.Total),
+			))
+		}
+		b.WriteString("\n")
+		b.WriteString(i18n.T(lang, "deliver.caption_total", pdf.FormatBRL(inv.Total)))
+	}
+	return b.String()
 }
 
 // reminderText is the payment-reminder wording for messaging channels.

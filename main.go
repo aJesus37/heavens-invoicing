@@ -55,8 +55,8 @@ func main() {
 		tgManager,
 		settingsLocale(repos.Settings),
 		setupEmail(ctx, repos.Settings, pixFallback),
-		setupWhatsAppDeliverer(waSession, pixFallback),
-		deliver.NewTelegram(tgManager, pixFallback),
+		setupWhatsAppDeliverer(waSession, pixFallback, senderInfo.Name),
+		deliver.NewTelegramWithBusiness(tgManager, pixFallback, senderInfo.Name),
 	)
 
 	startScheduler(ctx, repos, router, tgManager, senderInfo)
