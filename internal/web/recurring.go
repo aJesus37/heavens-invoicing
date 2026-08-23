@@ -195,12 +195,17 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	if _, err := h.repos.Invoices.Get(ctx, templateID); err != nil {
+	tpl, err := h.repos.Invoices.Get(ctx, templateID)
+	if err != nil {
 		if errors.Is(err, repo.ErrNotFound) {
 			refail(i18n.T(lang, "error.template_missing"), http.StatusBadRequest)
 			return
 		}
 		writeRepoErr(w, lang, err)
+		return
+	}
+	if tpl.ClientID != clientID {
+		refail(i18n.T(lang, "error.template_client_mismatch"), http.StatusBadRequest)
 		return
 	}
 
@@ -250,6 +255,92 @@ func (h *Handlers) toggleRecurring(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Active = !s.Active
 	if err := h.repos.Recurring.Update(r.Context(), s); err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	http.Redirect(w, r, "/recurring", http.StatusSeeOther)
+}
+
+type recurringEditData struct {
+	ID        string
+	Frequency []selectOption
+	Methods   []selectOption
+	NextDate  string
+	Error     string
+}
+
+func (h *Handlers) editRecurringForm(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	s, err := h.repos.Recurring.Get(r.Context(), id)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	data := &recurringEditData{
+		ID:        s.ID,
+		Frequency: optionsFrom(lang, "freq.", frequencyOrder, s.Frequency),
+		Methods:   optionsFrom(lang, "method.", methodOrder, s.DeliveryMethod),
+		NextDate:  s.NextSendDate.Format("2006-01-02"),
+	}
+	h.renderPage(w, r, http.StatusOK, "recurring_edit.html", i18n.T(lang, "recurring.edit_title"), lang, data)
+}
+
+func (h *Handlers) updateRecurring(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	s, err := h.repos.Recurring.Get(ctx, id)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		failBadRequest(w, lang)
+		return
+	}
+	frequency := r.FormValue("frequency")
+	method := r.FormValue("delivery_method")
+	nextDateStr := r.FormValue("next_send_date")
+
+	refail := func(msg string, code int) {
+		data := &recurringEditData{
+			ID:        s.ID,
+			Frequency: optionsFrom(lang, "freq.", frequencyOrder, frequency),
+			Methods:   optionsFrom(lang, "method.", methodOrder, method),
+			NextDate:  nextDateStr,
+			Error:     msg,
+		}
+		if data.NextDate == "" {
+			data.NextDate = s.NextSendDate.Format("2006-01-02")
+		}
+		h.renderPage(w, r, code, "recurring_edit.html", i18n.T(lang, "recurring.edit_title"), lang, data)
+	}
+
+	if !slices.Contains(frequencyOrder, frequency) {
+		refail(i18n.T(lang, "error.frequency_invalid"), http.StatusBadRequest)
+		return
+	}
+	if !slices.Contains(methodOrder, method) {
+		refail(i18n.T(lang, "error.method_invalid"), http.StatusBadRequest)
+		return
+	}
+	nextSend := s.NextSendDate
+	if nextDateStr == "" {
+		refail(i18n.T(lang, "error.next_date_invalid"), http.StatusBadRequest)
+		return
+	}
+	parsed, err := time.ParseInLocation("2006-01-02", nextDateStr, time.Local)
+	if err != nil {
+		refail(i18n.T(lang, "error.next_date_invalid"), http.StatusBadRequest)
+		return
+	}
+	nextSend = parsed
+
+	s.Frequency = frequency
+	s.DeliveryMethod = method
+	s.NextSendDate = nextSend
+	if err := h.repos.Recurring.Update(ctx, s); err != nil {
 		writeRepoErr(w, lang, err)
 		return
 	}

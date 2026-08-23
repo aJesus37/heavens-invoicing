@@ -137,3 +137,13 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
+
+func (h *Handlers) deleteProduct(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	if err := h.repos.Products.Delete(r.Context(), id); err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	http.Redirect(w, r, "/products", http.StatusSeeOther)
+}

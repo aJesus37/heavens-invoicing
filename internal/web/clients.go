@@ -177,3 +177,13 @@ func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/clients/"+id, http.StatusSeeOther)
 }
+
+func (h *Handlers) deleteClient(w http.ResponseWriter, r *http.Request) {
+	lang := h.lang(r)
+	id := r.PathValue("id")
+	if err := h.repos.Clients.Delete(r.Context(), id); err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	http.Redirect(w, r, "/clients", http.StatusSeeOther)
+}

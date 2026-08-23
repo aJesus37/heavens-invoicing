@@ -2,6 +2,9 @@
 {{if .Created}}<div class="ok-banner">{{T "clients.created"}}</div>{{end}}
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 <h1>{{.Client.Name}}</h1>
+<div class="actions" style="margin-bottom:1rem;">
+<a href="/invoices/new?client_id={{.Client.ID}}" class="btn">{{T "clients.detail.create_invoice"}}</a>
+</div>
 
 <div class="panel">
 <dl class="kv">
@@ -82,6 +85,13 @@
 <button type="submit">{{T "button.save_changes"}}</button>
 <a class="btn btn-secondary" href="/clients/{{.Client.ID}}">{{T "clients.detail.revert"}}</a>
 </div>
+</form>
+</div>
+
+<div class="panel" style="margin-top:1rem;">
+<form method="post" action="/clients/{{.Client.ID}}/delete" onsubmit="return confirm('{{T "clients.delete_confirm"}}');">
+{{template "csrfField" .}}
+<button type="submit" class="btn-danger" aria-label="{{T "clients.delete"}}">{{T "clients.delete"}}</button>
 </form>
 </div>
 {{end}}

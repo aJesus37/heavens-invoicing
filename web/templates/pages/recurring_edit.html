@@ -1,0 +1,38 @@
+{{define "content"}}
+<h1>{{T "recurring.edit_title"}}</h1>
+
+{{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
+
+<div class="panel">
+<form method="post" action="/recurring/{{.ID}}/edit" class="stack">
+{{template "csrfField" .}}
+<div class="grid">
+<div>
+<label for="frequency">{{T "label.frequency"}} *</label>
+<select id="frequency" name="frequency" required>
+{{range .Frequency}}
+<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+{{end}}
+</select>
+</div>
+<div>
+<label for="delivery_method">{{T "label.delivery_method"}} *</label>
+<select id="delivery_method" name="delivery_method" required>
+{{range .Methods}}
+<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+{{end}}
+</select>
+</div>
+<div>
+<label for="next_send_date">{{T "label.next_send"}} *</label>
+<input type="date" id="next_send_date" name="next_send_date" value="{{.NextDate}}" required>
+</div>
+</div>
+
+<div class="actions">
+<button type="submit">{{T "button.save_changes"}}</button>
+<a class="btn btn-secondary" href="/recurring">{{T "button.cancel"}}</a>
+</div>
+</form>
+</div>
+{{end}}

@@ -8,7 +8,7 @@
 <div class="panel">
 <table>
 <thead>
-<tr><th>{{T "col.name"}}</th><th>{{T "col.description"}}</th><th class="num">{{T "col.unit_price"}}</th><th>{{T "col.currency"}}</th><th>{{T "col.active"}}</th></tr>
+<tr><th>{{T "col.name"}}</th><th>{{T "col.description"}}</th><th class="num">{{T "col.unit_price"}}</th><th>{{T "col.currency"}}</th><th>{{T "col.active"}}</th><th scope="col"></th></tr>
 </thead>
 <tbody>
 {{if .Products}}
@@ -19,10 +19,16 @@
 <td class="num">{{brl .UnitPrice}}</td>
 <td>{{.Currency}}</td>
 <td>{{if .Active}}{{T "common.yes"}}{{else}}{{T "common.no"}}{{end}}</td>
+<td>
+<form method="post" action="/products/{{.ID}}/delete" onsubmit="return confirm('{{T "products.delete_confirm"}}');">
+{{template "csrfField" .}}
+<button type="submit" class="btn-danger" aria-label="{{T "products.delete"}}">{{T "products.delete"}}</button>
+</form>
+</td>
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="5" class="muted">{{T "products.empty"}}</td></tr>
+<tr><td colspan="6" class="muted">{{T "products.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>

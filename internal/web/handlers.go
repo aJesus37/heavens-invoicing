@@ -87,12 +87,14 @@ func (h *Handlers) Mux() *http.ServeMux {
 	mux.HandleFunc("POST /clients/new", h.createClient)
 	mux.HandleFunc("GET /clients/{id}", h.showClient)
 	mux.HandleFunc("POST /clients/{id}", h.updateClient)
+	mux.HandleFunc("POST /clients/{id}/delete", h.deleteClient)
 
 	mux.HandleFunc("GET /products", h.listProducts)
 	mux.HandleFunc("GET /products/new", h.newProductForm)
 	mux.HandleFunc("POST /products/new", h.createProduct)
 	mux.HandleFunc("GET /products/{id}/edit", h.editProductForm)
 	mux.HandleFunc("POST /products/{id}/edit", h.updateProduct)
+	mux.HandleFunc("POST /products/{id}/delete", h.deleteProduct)
 
 	mux.HandleFunc("GET /invoices", h.listInvoices)
 	mux.HandleFunc("GET /invoices/new", h.newInvoiceForm)
@@ -105,6 +107,8 @@ func (h *Handlers) Mux() *http.ServeMux {
 	mux.HandleFunc("GET /recurring", h.listRecurring)
 	mux.HandleFunc("GET /recurring/new", h.newRecurringForm)
 	mux.HandleFunc("POST /recurring/new", h.createRecurring)
+	mux.HandleFunc("GET /recurring/{id}/edit", h.editRecurringForm)
+	mux.HandleFunc("POST /recurring/{id}/edit", h.updateRecurring)
 	mux.HandleFunc("POST /recurring/{id}/delete", h.deleteRecurring)
 	mux.HandleFunc("POST /recurring/{id}/toggle", h.toggleRecurring)
 

@@ -23,7 +23,8 @@
 <td>{{.MethodLabel}}</td>
 		<td>{{if .Active}}{{T "recurring.active"}}{{else}}{{T "recurring.paused"}}{{end}}</td>
 		<td>
-		<form method="post" action="/recurring/{{.ID}}/toggle" onsubmit="return confirm('{{T "recurring.toggle_confirm"}}');">
+		<a href="/recurring/{{.ID}}/edit" class="btn btn-secondary" aria-label="{{T "recurring.edit"}}">{{T "recurring.edit"}}</a>
+		<form method="post" action="/recurring/{{.ID}}/toggle" onsubmit="return confirm('{{T "recurring.toggle_confirm"}}');" style="display:inline;">
 		{{template "csrfField" .}}
 		<button type="submit" class="btn-secondary" aria-label="{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}">{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}</button>
 		</form>
