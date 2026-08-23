@@ -5,9 +5,10 @@
 </div>
 
 <div class="panel">
+<div class="table-wrap" style="overflow-x:auto">
 <table>
 <thead>
-<tr><th>{{T "col.client"}}</th><th>{{T "col.template"}}</th><th>{{T "col.frequency"}}</th><th>{{T "col.next_send"}}</th><th>{{T "col.last_send"}}</th><th>{{T "col.method"}}</th><th>{{T "col.active"}}</th><th></th></tr>
+<tr><th>{{T "col.client"}}</th><th>{{T "col.template"}}</th><th>{{T "col.frequency"}}</th><th>{{T "col.next_send"}}</th><th>{{T "col.last_send"}}</th><th>{{T "col.method"}}</th><th>{{T "col.active"}}</th><th></th><th></th></tr>
 </thead>
 <tbody>
 {{if .Rows}}
@@ -35,10 +36,11 @@
 </tr>
 {{end}}
 {{else}}
-<tr><td colspan="8" class="muted">{{T "recurring.empty"}}</td></tr>
+<tr><td colspan="9" class="muted">{{T "recurring.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>
+</div>
 </div>
 
 <p class="hint">{{T "hint.recurring_list"}}</p>
