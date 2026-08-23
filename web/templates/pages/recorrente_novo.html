@@ -23,7 +23,7 @@
 {{end}}
 </select>
 <p class="hint">{{T "hint.recurring_template"}}</p>
-{{if eq (len .Templates) 1}}<p class="hint">{{T "hint.no_drafts_link"}}</p>{{end}}
+{{if eq (len .Templates) 1}}<p class="hint">{{THTML "hint.no_drafts_link"}}</p>{{end}}
 </div>
 <div>
 <label for="frequency">{{T "label.frequency"}} *</label>
