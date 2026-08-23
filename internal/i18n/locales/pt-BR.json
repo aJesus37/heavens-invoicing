@@ -233,6 +233,7 @@
   "settings.hint_telegram_restart": "Alterações de Telegram entram em vigor após reiniciar o aplicativo.",
   "settings.keep_secret": "(deixe vazio para manter o valor salvo)",
   "settings.saved": "Configurações salvas.",
+  "settings.telegram_help": "Configuração do Telegram: 1) Fale com @BotFather no Telegram e use /newbot para criar um bot e copie o token. 2) Inicie uma conversa com seu bot (/start). 3) Obtenha seu chat ID e configure como Chat ID admin no Telegram. 4) Salve e reinicie o app. Comandos: <code>/paid &lt;número&gt;</code> (ex. <code>/paid 12</code> marca como paga), <code>/status</code>, <code>/upcoming</code>, <code>/clients</code>.",
   "settings.title": "Configurações",
   "settings.wa_loading": "Carregando estado do WhatsApp…",
   "status.cancelled": "cancelada",

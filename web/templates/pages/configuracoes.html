@@ -47,6 +47,7 @@
 {{if hasPrefix .Key "telegram_"}}{{template "settingsField" .}}{{end}}
 {{end}}
 <p class="hint">{{T "settings.hint_telegram_restart"}}</p>
+<div class="help">{{THTML "settings.telegram_help"}}</div>
 </div>
 
 <button type="submit">{{T "button.save_settings"}}</button>

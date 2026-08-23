@@ -68,6 +68,23 @@ func TestSettingsSaveAndReload(t *testing.T) {
 	}
 }
 
+func TestSettingsShowsTelegramHelp(t *testing.T) {
+	ts, _ := newTestEnv(t)
+
+	status, body := get(t, ts, "/settings")
+	if status != http.StatusOK {
+		t.Fatalf("GET /settings: got %d want 200", status)
+	}
+	if strings.Contains(body, "!settings.telegram_help") {
+		t.Fatalf("settings page missing i18n key settings.telegram_help (body contains !settings.telegram_help)")
+	}
+	for _, want := range []string{"BotFather", "/paid", "/status", "/upcoming", "/clients"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("settings page missing telegram help marker %q\nbody snippet: %s", want, snippet(body, 3000))
+		}
+	}
+}
+
 func TestWhatsAppStatusFragmentUnavailable(t *testing.T) {
 	ts, _ := newTestEnv(t)
 

@@ -233,6 +233,7 @@
   "settings.hint_telegram_restart": "Telegram changes take effect after restarting the application.",
   "settings.keep_secret": "(leave blank to keep the saved value)",
   "settings.saved": "Settings saved.",
+  "settings.telegram_help": "Telegram setup: 1) Talk to @BotFather on Telegram and run /newbot to create a bot and copy the token. 2) Start a chat with your bot (/start). 3) Get your chat ID and set it as Admin Telegram chat ID. 4) Save & restart the app. Commands: <code>/paid &lt;number&gt;</code> (e.g. <code>/paid 12</code> marks invoice as paid), <code>/status</code>, <code>/upcoming</code>, <code>/clients</code>.",
   "settings.title": "Settings",
   "settings.wa_loading": "Loading WhatsApp state…",
   "status.cancelled": "cancelled",
