@@ -9,7 +9,7 @@
 <div class="table-wrap" style="overflow-x:auto">
 <table>
 <thead>
-<tr><th>{{T "col.client"}}</th><th>{{T "col.template"}}</th><th>{{T "col.frequency"}}</th><th>{{T "col.next_send"}}</th><th>{{T "col.last_send"}}</th><th>{{T "col.method"}}</th><th>{{T "col.active"}}</th><th></th><th></th></tr>
+<tr><th scope="col">{{T "col.client"}}</th><th scope="col">{{T "col.template"}}</th><th scope="col">{{T "col.frequency"}}</th><th scope="col">{{T "col.next_send"}}</th><th scope="col">{{T "col.last_send"}}</th><th scope="col">{{T "col.method"}}</th><th scope="col">{{T "col.active"}}</th><th scope="col"></th><th scope="col"></th></tr>
 </thead>
 <tbody>
 {{if .Rows}}
@@ -23,15 +23,15 @@
 <td>{{.MethodLabel}}</td>
 		<td>{{if .Active}}{{T "recurring.active"}}{{else}}{{T "recurring.paused"}}{{end}}</td>
 		<td>
-		<form method="post" action="/recurring/{{.ID}}/toggle">
+		<form method="post" action="/recurring/{{.ID}}/toggle" onsubmit="return confirm('{{T "recurring.toggle_confirm"}}');">
 		{{template "csrfField" .}}
-		<button type="submit" class="btn-secondary">{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}</button>
+		<button type="submit" class="btn-secondary" aria-label="{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}">{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}</button>
 		</form>
 		</td>
 		<td>
-		<form method="post" action="/recurring/{{.ID}}/delete">
+		<form method="post" action="/recurring/{{.ID}}/delete" onsubmit="return confirm('{{T "recurring.delete_confirm"}}');">
 		{{template "csrfField" .}}
-		<button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
+		<button type="submit" class="btn-danger" aria-label="{{T "recurring.delete"}}">{{T "recurring.delete"}}</button>
 		</form>
 		</td>
 </tr>

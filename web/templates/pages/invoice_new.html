@@ -28,7 +28,7 @@
 <h2>{{T "items.title"}}</h2>
 <table class="item-table">
 <thead>
-<tr><th style="min-width:18rem;">{{T "col.description"}}</th><th>{{T "col.qty"}}</th><th>{{T "label.unit_price_brl"}}</th><th>{{T "col.total"}}</th><th></th></tr>
+<tr><th scope="col" style="min-width:18rem;">{{T "col.description"}}</th><th scope="col">{{T "col.qty"}}</th><th scope="col">{{T "label.unit_price_brl"}}</th><th scope="col">{{T "col.total"}}</th><th scope="col"></th></tr>
 </thead>
 <tbody id="items-body">
 {{$d := .}}
@@ -44,12 +44,13 @@
 <td><input type="text" name="item_qty_0" value="{{$it0.Quantity}}" inputmode="numeric" placeholder="1"></td>
 <td><input type="text" name="item_price_0" value="{{$it0.UnitPrice}}" placeholder="0,00"></td>
 <td class="row-total">0,00</td>
-<td><button type="button" class="remove-row">×</button></td>
+<td><button type="button" class="remove-row" aria-label="{{T "button.remove_item"}}">×</button></td>
 </tr>
 </tbody>
 <tfoot><tr><td colspan="3">{{T "col.total"}}</td><td id="grand-total">0,00</td><td></td></tr></tfoot>
 </table>
-<button type="button" id="add-item">{{T "button.add_item"}}</button>
+<p id="items-cap-error" class="error-banner" hidden aria-live="polite">{{T "error.items_limit"}}</p>
+<button type="button" id="add-item" aria-describedby="items-cap-error">{{T "button.add_item"}}</button>
 
 <template id="row-template">
 <tr>
@@ -63,7 +64,7 @@
 <td><input type="text" name="item_qty___IDX__" value="" inputmode="numeric" placeholder="1"></td>
 <td><input type="text" name="item_price___IDX__" value="" placeholder="0,00"></td>
 <td class="row-total">0,00</td>
-<td><button type="button" class="remove-row">×</button></td>
+<td><button type="button" class="remove-row" aria-label="{{T "button.remove_item"}}">×</button></td>
 </tr>
 </template>
 
@@ -146,10 +147,23 @@ function bindRow(tr){
   if(q2) q2.addEventListener('change', recalc);
 }
 var nextIdx = 1;
+var maxItems = {{if .MaxItems}}{{.MaxItems}}{{else}}20{{end}};
 document.querySelectorAll('#items-body tr').forEach(bindRow);
 var addBtn = document.getElementById('add-item');
+var capError = document.getElementById('items-cap-error');
+function updateAddState(){
+  var rows = document.querySelectorAll('#items-body tr').length;
+  var atCap = rows >= maxItems || nextIdx >= maxItems;
+  if(addBtn) addBtn.disabled = atCap;
+  if(capError) capError.hidden = !atCap;
+}
 if(addBtn){
   addBtn.addEventListener('click', function(){
+    var rows = document.querySelectorAll('#items-body tr').length;
+    if(rows >= maxItems || nextIdx >= maxItems){
+      updateAddState();
+      return;
+    }
     var tpl = document.getElementById('row-template');
     if(!tpl) return;
     var html = tpl.innerHTML.replace(/__IDX__/g, nextIdx);
@@ -163,6 +177,7 @@ if(addBtn){
       recalc();
     }
     nextIdx++;
+    updateAddState();
   });
 }
 var bodyEl = document.getElementById('items-body');
@@ -175,6 +190,7 @@ if(bodyEl){
         if(rows.length>1){
           tr.remove();
           recalc();
+          updateAddState();
         } else {
           tr.querySelectorAll('input').forEach(function(inp){ inp.value=''; });
           var sel=tr.querySelector('.product-picker');
@@ -186,6 +202,7 @@ if(bodyEl){
   });
 }
 recalc();
+updateAddState();
 </script>
 </form>
 </div>
