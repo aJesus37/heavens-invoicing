@@ -28,25 +28,44 @@
 <h2>{{T "items.title"}}</h2>
 <table class="item-table">
 <thead>
-<tr><th style="min-width:18rem;">{{T "col.description"}}</th><th>{{T "col.qty"}}</th><th>{{T "label.unit_price_brl"}}</th></tr>
+<tr><th style="min-width:18rem;">{{T "col.description"}}</th><th>{{T "col.qty"}}</th><th>{{T "label.unit_price_brl"}}</th><th>{{T "col.total"}}</th><th></th></tr>
 </thead>
-<tbody>
+<tbody id="items-body">
 {{$d := .}}
-{{range $i, $it := $d.Items}}
+{{$it0 := index $d.Items 0}}
 <tr>
 <td>
-  <select class="product-picker" data-row="{{$i}}">
+  <select class="product-picker" data-row="0">
     <option value="">{{T "label.select_product"}}</option>
     {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}}</option>{{end}}
   </select>
-  <input type="text" name="item_desc_{{$i}}" value="{{$it.Description}}">
+  <input type="text" name="item_desc_0" value="{{$it0.Description}}">
 </td>
-<td><input type="text" name="item_qty_{{$i}}" value="{{$it.Quantity}}" inputmode="numeric" placeholder="1"></td>
-<td><input type="text" name="item_price_{{$i}}" value="{{$it.UnitPrice}}" placeholder="0,00"></td>
+<td><input type="text" name="item_qty_0" value="{{$it0.Quantity}}" inputmode="numeric" placeholder="1"></td>
+<td><input type="text" name="item_price_0" value="{{$it0.UnitPrice}}" placeholder="0,00"></td>
+<td class="row-total">0,00</td>
+<td><button type="button" class="remove-row">×</button></td>
 </tr>
-{{end}}
 </tbody>
+<tfoot><tr><td colspan="3">{{T "col.total"}}</td><td id="grand-total">0,00</td><td></td></tr></tfoot>
 </table>
+<button type="button" id="add-item">{{T "button.add_item"}}</button>
+
+<template id="row-template">
+<tr>
+<td>
+  <select class="product-picker" data-row="__IDX__">
+    <option value="">{{T "label.select_product"}}</option>
+    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}}</option>{{end}}
+  </select>
+  <input type="text" name="item_desc___IDX__" value="">
+</td>
+<td><input type="text" name="item_qty___IDX__" value="" inputmode="numeric" placeholder="1"></td>
+<td><input type="text" name="item_price___IDX__" value="" placeholder="0,00"></td>
+<td class="row-total">0,00</td>
+<td><button type="button" class="remove-row">×</button></td>
+</tr>
+</template>
 
 <div class="grid">
 <div class="wide">
@@ -64,17 +83,109 @@
 <a class="btn btn-secondary" href="/faturas">{{T "button.cancel"}}</a>
 </div>
 <script>
-document.querySelectorAll('.product-picker').forEach(function(sel){
+function parsePrice(s){
+  if(!s) return 0;
+  s = s.replace(/R\$\s*/g, '').trim();
+  s = s.replace(/\./g, '').replace(',', '.');
+  var v = parseFloat(s);
+  if(isNaN(v)) return 0;
+  return Math.round(v*100);
+}
+function fmt(cents){
+  var sign = cents < 0 ? "-" : "";
+  cents = Math.abs(cents);
+  var reais = Math.floor(cents/100);
+  var frac = cents % 100;
+  var s = reais.toString();
+  var out = "";
+  for(var i=0;i<s.length;i++){
+    if(i>0 && (s.length-i)%3===0) out+=".";
+    out+=s[i];
+  }
+  if(frac<10) out+=",0"+frac; else out+=","+frac;
+  return sign+out;
+}
+function recalc(){
+  var grand=0;
+  document.querySelectorAll('#items-body tr').forEach(function(tr){
+    var qtyEl = tr.querySelector('input[name^="item_qty_"]');
+    var priceEl = tr.querySelector('input[name^="item_price_"]');
+    var totalEl = tr.querySelector('.row-total');
+    if(!qtyEl||!priceEl||!totalEl) return;
+    var qtyStr = qtyEl.value.trim();
+    var qty = qtyStr==="" ? 1 : parseInt(qtyStr,10);
+    if(isNaN(qty)||qty<0) qty=0;
+    var cents = parsePrice(priceEl.value);
+    var total = qty*cents;
+    totalEl.textContent = fmt(total);
+    grand+=total;
+  });
+  var gEl = document.getElementById('grand-total');
+  if(gEl) gEl.textContent = fmt(grand);
+}
+function bindPicker(sel){
   sel.addEventListener('change', function(){
     var r = this.dataset.row;
     var opt = this.options[this.selectedIndex];
-    if (!opt || !opt.value) return;
+    if(!opt || !opt.value) return;
     var d = document.querySelector('input[name="item_desc_'+r+'"]');
     var p = document.querySelector('input[name="item_price_'+r+'"]');
-    if (d) d.value = opt.dataset.description || "";
-    if (p) p.value = opt.dataset.price || "";
+    if(d) d.value = opt.dataset.description || "";
+    if(p) p.value = opt.dataset.price || "";
+    recalc();
   });
-});
+}
+function bindRow(tr){
+  var sel = tr.querySelector('.product-picker');
+  if(sel) bindPicker(sel);
+  var qty = tr.querySelector('input[name^="item_qty_"]');
+  var price = tr.querySelector('input[name^="item_price_"]');
+  if(qty) qty.addEventListener('input', recalc);
+  if(price) price.addEventListener('input', recalc);
+  var q2 = tr.querySelector('input[name^="item_price_"]');
+  if(q2) q2.addEventListener('change', recalc);
+}
+var nextIdx = 1;
+document.querySelectorAll('#items-body tr').forEach(bindRow);
+var addBtn = document.getElementById('add-item');
+if(addBtn){
+  addBtn.addEventListener('click', function(){
+    var tpl = document.getElementById('row-template');
+    if(!tpl) return;
+    var html = tpl.innerHTML.replace(/__IDX__/g, nextIdx);
+    var tbody = document.getElementById('items-body');
+    var tmp = document.createElement('tbody');
+    tmp.innerHTML = html;
+    var tr = tmp.firstElementChild;
+    if(tr){
+      tbody.appendChild(tr);
+      bindRow(tr);
+      recalc();
+    }
+    nextIdx++;
+  });
+}
+var bodyEl = document.getElementById('items-body');
+if(bodyEl){
+  bodyEl.addEventListener('click', function(e){
+    if(e.target && e.target.classList.contains('remove-row')){
+      var tr = e.target.closest('tr');
+      if(tr){
+        var rows = document.querySelectorAll('#items-body tr');
+        if(rows.length>1){
+          tr.remove();
+          recalc();
+        } else {
+          tr.querySelectorAll('input').forEach(function(inp){ inp.value=''; });
+          var sel=tr.querySelector('.product-picker');
+          if(sel) sel.selectedIndex=0;
+          recalc();
+        }
+      }
+    }
+  });
+}
+recalc();
 </script>
 </form>
 </div>

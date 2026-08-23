@@ -33,6 +33,7 @@
   "bot.pending_empty": "Nenhuma fatura pendente.",
   "bot.upcoming_empty": "Nenhuma fatura vence nos próximos 7 dias.",
   "bot.usage_paid": "Uso: /paid <número da fatura>",
+  "button.add_item": "Adicionar item",
   "button.cancel": "Cancelar",
   "button.create_invoice": "Criar fatura",
   "button.create_recurring": "Criar recorrência",

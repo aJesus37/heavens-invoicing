@@ -149,3 +149,104 @@ func TestProductPickerI18n(t *testing.T) {
 		t.Error("invoice form missing en translation for label.select_product: want \"Select product\"")
 	}
 }
+
+func TestInvoiceFormHasTotalsAndAddButton(t *testing.T) {
+	ts, _ := newTestEnv(t)
+	// Task 1 specifies GET /faturas/nova (pre-rename); Task 3 migrates to /invoices/new.
+	// Try new path first, fall back to Portuguese for TDD in Task 1.
+	status, body := get(t, ts, "/invoices/new")
+	if status != 200 {
+		status, body = get(t, ts, "/faturas/nova")
+	}
+	if status != 200 {
+		t.Fatalf("GET invoice form: got %d want 200\nbody: %s", status, body)
+	}
+	if !strings.Contains(body, "row-total") {
+		t.Error("invoice form missing row-total cell (expected class=\"row-total\")")
+	}
+	if !strings.Contains(body, "grand-total") {
+		t.Error("invoice form missing grand total element (expected id=\"grand-total\")")
+	}
+	if !strings.Contains(body, `id="grand-total"`) {
+		t.Error("invoice form missing id=\"grand-total\" element")
+	}
+	if !strings.Contains(body, `id="add-item"`) {
+		t.Error("invoice form missing add button (expected id=\"add-item\")")
+	}
+	if !strings.Contains(body, `id="row-template"`) {
+		t.Error("invoice form missing template#row-template")
+	}
+	if !strings.Contains(body, "<template") {
+		t.Error("invoice form missing <template> for new rows")
+	}
+	if !strings.Contains(body, "__IDX__") {
+		t.Error("invoice form missing __IDX__ placeholder in row template")
+	}
+	if !strings.Contains(body, "remove-row") {
+		t.Error("invoice form missing remove-row button")
+	}
+	if !strings.Contains(body, "<tfoot") {
+		t.Error("invoice form missing <tfoot> with grand total")
+	}
+	// Script recalc / total logic
+	if !strings.Contains(body, "recalc") {
+		t.Error("invoice form script missing recalc logic")
+	}
+	if !strings.Contains(body, "parsePrice") && !strings.Contains(body, "parse") {
+		t.Error("invoice form script missing parsePrice logic")
+	}
+	if !strings.Contains(strings.ToLower(body), "grand-total") {
+		t.Error("invoice form script missing grand-total handling")
+	}
+	if !strings.Contains(body, "row-total") {
+		t.Error("invoice form script missing row-total handling")
+	}
+}
+
+func TestInvoiceFormSingleInitialRow(t *testing.T) {
+	ts, _ := newTestEnv(t)
+	status, body := get(t, ts, "/invoices/new")
+	if status != 200 {
+		status, body = get(t, ts, "/faturas/nova")
+	}
+	if status != 200 {
+		t.Fatalf("GET invoice form: got %d want 200", status)
+	}
+	// Count visible product-picker selects, excluding the <template> block.
+	// Only count <select> tags with the marker to avoid counting JS selectors.
+	visible := body
+	if start := strings.Index(visible, `<template`); start != -1 {
+		if end := strings.Index(visible[start:], `</template>`); end != -1 {
+			visible = visible[:start] + visible[start+end+len(`</template>`):]
+		}
+	}
+	// Strip <script> blocks for counts that would also appear in JS.
+	stripScripts := func(s string) string {
+		for {
+			start := strings.Index(s, "<script")
+			if start == -1 {
+				break
+			}
+			end := strings.Index(s[start:], "</script>")
+			if end == -1 {
+				break
+			}
+			s = s[:start] + s[start+end+len("</script>"):]
+		}
+		return s
+	}
+	visibleNoScript := stripScripts(visible)
+	count := strings.Count(visibleNoScript, `class="product-picker"`)
+	if count != 1 {
+		snippet := visible
+		if len(snippet) > 2000 {
+			snippet = snippet[:2000]
+		}
+		t.Errorf("expected 1 visible product-picker select, got %d (visible body snippet: %q)", count, snippet)
+	}
+	// Also ensure only one initial item_desc_0 visible and not 5 pre-rendered rows.
+	visibleDescCount := strings.Count(visibleNoScript, `name="item_desc_`)
+	if visibleDescCount != 1 {
+		t.Errorf("expected 1 visible item row (item_desc_0), got %d", visibleDescCount)
+	}
+}

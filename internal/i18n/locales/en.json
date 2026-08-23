@@ -33,6 +33,7 @@
   "bot.pending_empty": "No pending invoices.",
   "bot.upcoming_empty": "No invoices due in the next 7 days.",
   "bot.usage_paid": "Usage: /paid <invoice number>",
+  "button.add_item": "Add item",
   "button.cancel": "Cancel",
   "button.create_invoice": "Create invoice",
   "button.create_recurring": "Create recurring",
