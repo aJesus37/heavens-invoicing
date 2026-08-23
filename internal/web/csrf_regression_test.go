@@ -108,17 +108,30 @@ func TestLoginDoesNotRotateCSRFCookie(t *testing.T) {
 	}
 }
 
-// TestFaviconDoesNotChaseIntoLogin pins the favicon dead-end: without it,
-// GET /favicon.ico fell through to the dashboard route and bounced anonymous
-// visitors into /login, which browsers silently followed.
+// TestFaviconDoesNotChaseIntoLogin pins the favicon: it must serve the
+// logo SVG (not fall through to dashboard → 303 → /login) and not chase.
 func TestFaviconDoesNotChaseIntoLogin(t *testing.T) {
 	ts, _, _ := newAuthEnv(t)
 	resp := getReq(t, ts, "/favicon.ico")
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("GET /favicon.ico: got %d want 204", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /favicon.ico: got %d want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "image/svg+xml" {
+		t.Fatalf("favicon Content-Type: got %q want image/svg+xml", ct)
 	}
 	if loc := resp.Header.Get("Location"); loc != "" {
 		t.Fatalf("favicon redirected to %q — it must not chase into /login", loc)
 	}
+	body := readBody(resp)
+	if !strings.Contains(body, "<svg") {
+		t.Fatalf("favicon body must contain SVG, got %q", body[:min(200, len(body))])
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
