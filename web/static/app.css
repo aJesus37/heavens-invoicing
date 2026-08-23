@@ -45,13 +45,36 @@ main {
 	background: var(--panel);
 	border-bottom: 1px solid var(--line);
 }
-.topbar nav {
+.topbar-inner {
 	max-width: 60rem;
 	margin: 0 auto;
 	padding: 0.6rem 1rem;
 	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+.topbar-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--text);
+	text-decoration: none;
+	font-weight: 700;
+	white-space: nowrap;
+}
+.topbar-brand img { display: block; }
+.topbar nav {
+	display: flex;
 	gap: 0.25rem;
 	flex-wrap: wrap;
+	justify-content: center;
+	flex: 1;
+}
+.topbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 }
 .topbar a {
 	color: var(--text);

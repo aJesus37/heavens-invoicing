@@ -21,6 +21,11 @@ document.addEventListener('htmx:config-request', function (evt) {
 </head>
 <body>
 <header class="topbar">
+<div class="topbar-inner">
+<a href="/" class="topbar-brand" aria-label="Heaven's Invoicing">
+<img src="/static/logo.svg" alt="" width="28" height="28">
+<span>Heaven's Invoicing</span>
+</a>
 <nav aria-label="{{T "nav.aria"}}">
 <a href="/">{{T "nav.dashboard"}}</a>
 <a href="/clients">{{T "nav.clients"}}</a>
@@ -28,6 +33,8 @@ document.addEventListener('htmx:config-request', function (evt) {
 <a href="/invoices">{{T "nav.invoices"}}</a>
 <a href="/recurring">{{T "nav.recurring"}}</a>
 <a href="/settings">{{T "nav.settings"}}</a>
+</nav>
+<div class="topbar-actions">
 <button id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">🌙</button>
 {{if .Authed}}
 <form method="post" action="/logout" class="nav-logout">
@@ -35,7 +42,8 @@ document.addEventListener('htmx:config-request', function (evt) {
 <button type="submit">{{T "nav.logout"}}</button>
 </form>
 {{end}}
-</nav>
+</div>
+</div>
 </header>
 <script>
 (function(){
