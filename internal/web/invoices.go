@@ -380,6 +380,10 @@ func (h *Handlers) sendInvoiceAction(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
+	if inv.Status == "cancelled" {
+		http.Error(w, sendErrText(lang, deliver.ErrInvoiceCancelled), http.StatusConflict)
+		return
+	}
 	client, err := h.repos.Clients.Get(ctx, inv.ClientID)
 	if err != nil {
 		writeRepoErr(w, lang, err)
@@ -430,6 +434,8 @@ func sendErrText(lang i18n.Lang, err error) string {
 		return i18n.T(lang, "send.err_not_configured")
 	case errors.Is(err, deliver.ErrInvoicePaid):
 		return i18n.T(lang, "send.already_paid")
+	case errors.Is(err, deliver.ErrInvoiceCancelled):
+		return i18n.T(lang, "send.already_cancelled")
 	default:
 		return err.Error()
 	}

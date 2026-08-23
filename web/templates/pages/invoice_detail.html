@@ -40,7 +40,11 @@
 <div class="panel">
 <h2 style="margin-top:0;">{{T "detail.actions"}}</h2>
 
-{{if ne .Inv.Status "paid"}}
+{{if eq .Inv.Status "paid"}}
+<p class="muted">{{T "detail.paid_no_resend"}}</p>
+{{else if eq .Inv.Status "cancelled"}}
+<p class="muted">{{T "detail.cancelled_no_resend"}}</p>
+{{else}}
 <label for="send-method">{{T "detail.send_by"}}</label>
 <div class="actions">
 <select id="send-method" name="method" style="max-width:12rem;">
@@ -53,12 +57,10 @@
         hx-target="#send-resultados"
         hx-swap="innerHTML"
         {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>{{T "detail.send"}}</button>
-{{if ne .Inv.Status "cancelled"}}
 <form method="post" action="/invoices/{{.Inv.ID}}/mark-paid" style="display:inline;">
 {{template "csrfField" .}}
 <button type="submit">{{T "detail.mark_paid"}}</button>
 </form>
-{{end}}
 {{if .CanCancel}}
 <form method="post" action="/invoices/{{.Inv.ID}}/cancel" style="display:inline;" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
 {{template "csrfField" .}}
@@ -67,8 +69,6 @@
 {{end}}
 </div>
 <div id="send-resultados" aria-live="polite"></div>
-{{else}}
-<p class="muted">{{T "detail.paid_no_resend"}}</p>
 {{end}}
 </div>
 {{end}}

@@ -14,8 +14,9 @@ import (
 // summaries and stay Portuguese; callers that re-render them in another
 // language (the web UI) match with errors.Is instead of comparing strings.
 var (
-	ErrNotConfigured = errors.New("not configured")
-	ErrInvoicePaid   = errors.New("fatura já está paga")
+	ErrNotConfigured    = errors.New("not configured")
+	ErrInvoicePaid      = errors.New("fatura já está paga")
+	ErrInvoiceCancelled = errors.New("fatura está cancelada")
 )
 
 // ChannelResult reports the outcome of one delivery attempt.
@@ -98,12 +99,15 @@ func (r *Router) locale() i18n.Lang {
 
 // SendInvoice delivers the rendered invoice PDF through the requested
 // method and marks it "sent" when at least one attempted channel succeeds.
-// Paid invoices are rejected up front: resending must never downgrade
-// their status back to "sent". Drafts are accepted (the scheduler sends
-// freshly cloned drafts).
+// Paid and cancelled invoices are rejected up front: resending must never
+// downgrade their status back to "sent". Drafts are accepted (the scheduler
+// sends freshly cloned drafts).
 func (r *Router) SendInvoice(ctx context.Context, c model.Client, inv model.Invoice, pdf []byte, method string) ([]ChannelResult, error) {
 	if inv.Status == "paid" {
 		return nil, ErrInvoicePaid
+	}
+	if inv.Status == "cancelled" {
+		return nil, ErrInvoiceCancelled
 	}
 	targets, err := r.targets(c, method)
 	if err != nil {

@@ -228,11 +228,28 @@ func TestInvoiceCancelledKeepsSendOnly(t *testing.T) {
 	}
 
 	_, body := get(t, ts, "/invoices/"+inv.ID)
-	if strings.Contains(body, "Marcar paga") {
+	if strings.Contains(body, "Marcar paga") || strings.Contains(body, "Mark paid") {
 		t.Error("cancelled invoice still offers mark-paid")
 	}
-	if !strings.Contains(body, "Enviar fatura") {
-		t.Error("cancelled invoice lost the send action")
+	if strings.Contains(body, "Enviar fatura") || strings.Contains(body, "Send invoice") {
+		t.Error("cancelled invoice still offers send action")
+	}
+	if !strings.Contains(body, "cancelada") && !strings.Contains(body, "Cancelled") && !strings.Contains(body, "cancelled") {
+		t.Error("cancelled invoice should show disabled message")
+	}
+
+	// Sending a cancelled invoice must be rejected with 409.
+	resp, bodySend := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"email"}})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("send cancelled invoice: got %d want 409", resp.StatusCode)
+	}
+	if !strings.Contains(bodySend, "cancelada") && !strings.Contains(strings.ToLower(bodySend), "cancelled") {
+		t.Errorf("send cancelled response missing reason: %s", bodySend)
+	}
+	// Ensure status did not flip to sent.
+	got, err := repos.Invoices.Get(context.Background(), inv.ID)
+	if err != nil || got.Status != "cancelled" {
+		t.Fatalf("cancelled status was changed by send (status=%q err=%v)", got.Status, err)
 	}
 }
 
