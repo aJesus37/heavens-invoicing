@@ -39,8 +39,15 @@ func (d *WhatsAppDeliverer) SendInvoice(ctx context.Context, c model.Client, inv
 	num := invoiceNumber(inv)
 	lang := clientLang(c)
 	caption := invoiceCaption(lang, c, inv, d.businessName)
-	caption += pixLine(lang, pixKeyFor(inv, d.pixFallback))
-	return d.api.SendDocument(ctx, jid, "fatura-"+num+".pdf", pdf, caption)
+	if err := d.api.SendDocument(ctx, jid, "fatura-"+num+".pdf", pdf, caption); err != nil {
+		return err
+	}
+	if pix := pixKeyFor(inv, d.pixFallback); pix != "" {
+		if err := d.api.SendMessage(ctx, jid, pixMessage(lang, pix)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *WhatsAppDeliverer) SendReminder(ctx context.Context, c model.Client, inv model.Invoice) error {

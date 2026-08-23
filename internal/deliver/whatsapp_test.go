@@ -57,8 +57,8 @@ func TestWhatsAppSendInvoice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(api.calls) != 1 {
-		t.Fatalf("want 1 call, got %d", len(api.calls))
+	if len(api.calls) != 2 {
+		t.Fatalf("want 2 calls (document + pix message), got %d", len(api.calls))
 	}
 	call := api.calls[0]
 
@@ -77,6 +77,18 @@ func TestWhatsAppSendInvoice(t *testing.T) {
 	for _, want := range []string{"Fatura #000001", "Acme Ltda"} {
 		assertContains(t, call.caption, want)
 	}
+	// Caption must NOT contain the pix key; it is sent as a second copyable message.
+	if strings.Contains(call.caption, "pix@fallback.com") || strings.Contains(call.caption, "PIX") {
+		t.Fatalf("caption must not contain pix, got %q", call.caption)
+	}
+	pixMsg := api.calls[1]
+	if pixMsg.method != "SendMessage" {
+		t.Fatalf("second method: want SendMessage, got %q", pixMsg.method)
+	}
+	if pixMsg.jid != "5511999999999@s.whatsapp.net" {
+		t.Fatalf("pix JID: want %q, got %q", "5511999999999@s.whatsapp.net", pixMsg.jid)
+	}
+	assertContains(t, pixMsg.text, "pix@fallback.com")
 }
 
 func TestWhatsAppSendReminder(t *testing.T) {
@@ -183,15 +195,30 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendInvoice(context.Background(), waClient(&phone), invoiceWithKey(), []byte("pdf")); err != nil {
 			t.Fatal(err)
 		}
-		assertContains(t, api.calls[0].caption, "Chave PIX: "+invoicePix)
+		if len(api.calls) != 2 {
+			t.Fatalf("SendInvoice: want 2 calls (document + pix), got %d", len(api.calls))
+		}
+		if strings.Contains(api.calls[0].caption, invoicePix) || strings.Contains(api.calls[0].caption, "Chave PIX") {
+			t.Fatalf("caption must not contain pix, got %q", api.calls[0].caption)
+		}
 		if strings.Contains(api.calls[0].caption, fallbackPix) {
-			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[0].caption)
+			t.Fatalf("fallback must not appear in caption when invoice has its own key: %q", api.calls[0].caption)
+		}
+		assertContains(t, api.calls[1].text, invoicePix)
+		if strings.Contains(api.calls[1].text, fallbackPix) && fallbackPix != invoicePix {
+			t.Fatalf("fallback must not appear when invoice has its own key: %q", api.calls[1].text)
+		}
+		if api.calls[1].method != "SendMessage" {
+			t.Fatalf("second call must be SendMessage, got %q", api.calls[1].method)
 		}
 
 		if err := d.SendReminder(context.Background(), waClient(&phone), invoiceWithKey()); err != nil {
 			t.Fatal(err)
 		}
-		assertContains(t, api.calls[1].text, "Chave PIX: "+invoicePix)
+		if len(api.calls) != 3 {
+			t.Fatalf("after reminder: want 3 calls, got %d", len(api.calls))
+		}
+		assertContains(t, api.calls[2].text, "Chave PIX: "+invoicePix)
 	})
 
 	t.Run("falls back when invoice has none", func(t *testing.T) {
@@ -201,12 +228,24 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), []byte("pdf")); err != nil {
 			t.Fatal(err)
 		}
-		assertContains(t, api.calls[0].caption, "Chave PIX: "+fallbackPix)
+		if len(api.calls) != 2 {
+			t.Fatalf("SendInvoice: want 2 calls, got %d", len(api.calls))
+		}
+		if strings.Contains(api.calls[0].caption, "Chave PIX") || strings.Contains(api.calls[0].caption, fallbackPix) {
+			t.Fatalf("caption must not contain pix line, got %q", api.calls[0].caption)
+		}
+		assertContains(t, api.calls[1].text, fallbackPix)
+		if api.calls[1].method != "SendMessage" {
+			t.Fatalf("second call must be SendMessage, got %q", api.calls[1].method)
+		}
 
 		if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
 			t.Fatal(err)
 		}
-		assertContains(t, api.calls[1].text, "Chave PIX: "+fallbackPix)
+		if len(api.calls) != 3 {
+			t.Fatalf("after reminder: want 3 calls, got %d", len(api.calls))
+		}
+		assertContains(t, api.calls[2].text, "Chave PIX: "+fallbackPix)
 	})
 
 	t.Run("omitted entirely when no key anywhere", func(t *testing.T) {
@@ -216,12 +255,18 @@ func TestWhatsAppPIXKeyPrecedence(t *testing.T) {
 		if err := d.SendInvoice(context.Background(), waClient(&phone), testInvoice(), []byte("pdf")); err != nil {
 			t.Fatal(err)
 		}
+		if len(api.calls) != 1 {
+			t.Fatalf("want 1 call when no pix, got %d", len(api.calls))
+		}
 		if strings.Contains(api.calls[0].caption, "Chave PIX") {
 			t.Fatalf("empty key must omit the line, got %q", api.calls[0].caption)
 		}
 
 		if err := d.SendReminder(context.Background(), waClient(&phone), testInvoice()); err != nil {
 			t.Fatal(err)
+		}
+		if len(api.calls) != 2 {
+			t.Fatalf("after reminder: want 2 calls, got %d", len(api.calls))
 		}
 		if strings.Contains(api.calls[1].text, "Chave PIX") {
 			t.Fatalf("empty key must omit the line, got %q", api.calls[1].text)

@@ -69,6 +69,18 @@ func pixLine(lang i18n.Lang, key string) string {
 	return i18n.T(lang, "deliver.pix_line", key)
 }
 
+// pixMessage returns the localized PIX key as a separate copyable message;
+// empty key means no message. The catalog entry deliver.pix_message is
+// expected to be "%s" (just the raw key) so the second message is easily
+// copyable on mobile. Using i18n keeps the option to add a label later
+// without changing deliverers.
+func pixMessage(lang i18n.Lang, key string) string {
+	if key == "" {
+		return ""
+	}
+	return i18n.T(lang, "deliver.pix_message", key)
+}
+
 // emailPIXSection renders the PIX paragraph embedded into email bodies
 // (double newline separated); empty key means no section.
 func emailPIXSection(lang i18n.Lang, key string) string {

@@ -83,6 +83,7 @@
   "deliver.caption_item": "- %s (%d × %s) = %s",
   "deliver.caption_total": "Total: %s",
   "deliver.pix_line": "\nPIX key: %s",
+  "deliver.pix_message": "%s",
   "deliver.reminder_text": "Reminder: invoice #%s, due on %s, is still pending.",
   "detail.actions": "Actions",
   "detail.download_pdf": "Download PDF",
