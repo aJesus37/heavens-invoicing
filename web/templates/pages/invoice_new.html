@@ -37,7 +37,7 @@
 <td>
   <select class="product-picker" data-row="0">
     <option value="">{{T "label.select_product"}}</option>
-    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}}</option>{{end}}
+    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}} ({{.Value}})</option>{{end}}
   </select>
   <input type="text" name="item_desc_0" value="{{$it0.Description}}">
 </td>
@@ -57,7 +57,7 @@
 <td>
   <select class="product-picker" data-row="__IDX__">
     <option value="">{{T "label.select_product"}}</option>
-    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}}</option>{{end}}
+    {{range $d.Products}}<option value="{{.Value}}" data-description="{{.Description}}" data-price="{{.UnitPrice}}">{{.Label}} — {{.UnitPrice}} ({{.Value}})</option>{{end}}
   </select>
   <input type="text" name="item_desc___IDX__" value="">
 </td>

@@ -4,14 +4,20 @@
 <a class="btn" href="/clients/new">{{T "clients.new"}}</a>
 </div>
 
+<form method="get" action="/clients" class="actions" style="margin:1rem 0; gap:0.5rem; align-items:center;">
+<input type="search" name="q" value="{{.Q}}" placeholder="{{T "clients.search_placeholder"}}" aria-label="{{T "clients.search_label"}}" style="flex:1; max-width:20rem;">
+<button type="submit">{{T "clients.search_button"}}</button>
+{{if .Q}}<a class="btn btn-secondary" href="/clients">{{T "clients.search_clear"}}</a>{{end}}
+</form>
+
 <div class="panel">
 <table>
 <thead>
 <tr><th>{{T "col.name"}}</th><th>{{T "col.email"}}</th><th>{{T "col.phone"}}</th><th>{{T "col.address"}}</th></tr>
 </thead>
 <tbody>
-{{if .}}
-{{range .}}
+{{if .Clients}}
+{{range .Clients}}
 <tr>
 <td><a href="/clients/{{.ID}}">{{.Name}}</a></td>
 <td>{{with .Email}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
@@ -25,4 +31,15 @@
 </tbody>
 </table>
 </div>
+
+{{if gt .TotalPages 1}}
+<nav class="pagination" aria-label="Pagination" style="display:flex; gap:0.5rem; align-items:center; justify-content:center; margin-top:1rem;">
+{{if .HasPrev}}<a class="btn btn-secondary" href="{{.PrevURL}}">{{T "pagination.prev"}}</a>{{else}}<span class="btn btn-secondary muted" aria-disabled="true">{{T "pagination.prev"}}</span>{{end}}
+{{range .Pages}}
+{{if .Active}}<strong aria-current="page" style="padding:0.4rem 0.6rem;">{{.Num}}</strong>{{else}}<a href="{{.URL}}" style="padding:0.4rem 0.6rem;">{{.Num}}</a>{{end}}
+{{end}}
+{{if .HasNext}}<a class="btn btn-secondary" href="{{.NextURL}}">{{T "pagination.next"}}</a>{{else}}<span class="btn btn-secondary muted" aria-disabled="true">{{T "pagination.next"}}</span>{{end}}
+</nav>
+<p class="muted" style="text-align:center; margin-top:0.5rem;">{{T "pagination.info" .Page .TotalPages .Total}}</p>
+{{end}}
 {{end}}

@@ -228,6 +228,69 @@ func (r *InvoiceRepo) UpdateStatus(ctx context.Context, id string, status string
 	return nil
 }
 
+const InvoicePageSize = 20
+
+const invoiceColsQualified = `invoices.id, invoices.client_id, invoices.number, invoices.status, invoices.issue_date, invoices.due_date, invoices.subtotal, invoices.total, invoices.notes, invoices.pix_key, invoices.pdf_path, invoices.created_at, invoices.updated_at`
+
+// ListPaginated returns a single page of invoices filtered by optional
+// status and free-text query q. Pagination is LIMIT 20 OFFSET (page-1)*20
+// ordered by number DESC. The LIKE filter matches notes, pix_key,
+// invoice number (as text) and client name via a LEFT JOIN.
+func (r *InvoiceRepo) ListPaginated(ctx context.Context, page int, q string, status string) ([]*model.Invoice, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	q = strings.TrimSpace(q)
+	var where []string
+	var args []any
+
+	if status != "" {
+		if !validInvoiceStatus(status) {
+			return nil, 0, fmt.Errorf("list invoices paginated: unknown status %q (valid: %s)", status, strings.Join(invoiceStatuses, ", "))
+		}
+		where = append(where, "invoices.status = ?")
+		args = append(args, status)
+	}
+	if q != "" {
+		like := "%" + q + "%"
+		where = append(where, "(invoices.notes LIKE ? OR invoices.pix_key LIKE ? OR CAST(invoices.number AS TEXT) LIKE ? OR clients.name LIKE ?)")
+		args = append(args, like, like, like, like)
+	}
+	whereSQL := ""
+	if len(where) > 0 {
+		whereSQL = "WHERE " + strings.Join(where, " AND ")
+	}
+
+	countQuery := `SELECT COUNT(*) FROM invoices LEFT JOIN clients ON clients.id = invoices.client_id ` + whereSQL
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count invoices: %w", err)
+	}
+
+	limit := InvoicePageSize
+	offset := (page - 1) * limit
+	dataArgs := append(append([]any{}, args...), limit, offset)
+	dataQuery := `SELECT ` + invoiceColsQualified + ` FROM invoices LEFT JOIN clients ON clients.id = invoices.client_id ` + whereSQL + ` ORDER BY invoices.number DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list invoices paginated: %w", err)
+	}
+	defer rows.Close()
+
+	invoices := make([]*model.Invoice, 0)
+	for rows.Next() {
+		inv, err := scanInvoice(rows.Scan)
+		if err != nil {
+			return nil, 0, err
+		}
+		invoices = append(invoices, inv)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return invoices, total, nil
+}
+
 func (r *InvoiceRepo) List(ctx context.Context) ([]*model.Invoice, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+invoiceCols+` FROM invoices ORDER BY number DESC`)

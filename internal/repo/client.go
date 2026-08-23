@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/model"
@@ -59,6 +60,50 @@ func (r *ClientRepo) Update(ctx context.Context, c *model.Client) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+const ClientPageSize = 20
+
+// ListPaginated returns a page of clients filtered by free-text q (LIKE on
+// name/email/phone). Pagination is LIMIT 20 OFFSET (page-1)*20 ordered by name.
+func (r *ClientRepo) ListPaginated(ctx context.Context, page int, q string) ([]*model.Client, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	q = strings.TrimSpace(q)
+	var where string
+	var args []any
+	if q != "" {
+		like := "%" + q + "%"
+		where = "WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?"
+		args = append(args, like, like, like)
+	}
+	var total int
+	countQuery := `SELECT COUNT(*) FROM clients ` + where
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count clients: %w", err)
+	}
+	limit := ClientPageSize
+	offset := (page - 1) * limit
+	dataArgs := append(append([]any{}, args...), limit, offset)
+	dataQuery := `SELECT ` + clientCols + ` FROM clients ` + where + ` ORDER BY name LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list clients paginated: %w", err)
+	}
+	defer rows.Close()
+	clients := make([]*model.Client, 0)
+	for rows.Next() {
+		c, err := scanClient(rows.Scan)
+		if err != nil {
+			return nil, 0, err
+		}
+		clients = append(clients, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return clients, total, nil
 }
 
 func (r *ClientRepo) List(ctx context.Context) ([]*model.Client, error) {

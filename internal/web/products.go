@@ -2,10 +2,13 @@ package web
 
 import (
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
+	"github.com/jesus/invoice-app/internal/repo"
 )
 
 type productForm struct {
@@ -20,19 +23,79 @@ type productForm struct {
 }
 
 type produtosData struct {
-	Products []*model.Product
-	Created  bool
+	Products   []*model.Product
+	Created    bool
+	Q          string
+	Page       int
+	Total      int
+	TotalPages int
+	HasPrev    bool
+	HasNext    bool
+	PrevURL    string
+	NextURL    string
+	Pages      []pageLink
+}
+
+func productPageURL(page int, q string) string {
+	v := url.Values{}
+	if q != "" {
+		v.Set("q", q)
+	}
+	if page > 1 {
+		v.Set("page", strconv.Itoa(page))
+	}
+	if len(v) == 0 {
+		return "/products"
+	}
+	return "/products?" + v.Encode()
 }
 
 func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	products, err := h.repos.Products.List(r.Context())
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	page := 1
+	if s := r.URL.Query().Get("page"); s != "" {
+		if p, err := strconv.Atoi(s); err == nil && p > 0 {
+			page = p
+		}
+	}
+	products, total, err := h.repos.Products.ListPaginated(r.Context(), page, q)
 	if err != nil {
 		writeRepoErr(w, lang, err)
 		return
 	}
 	created := r.URL.Query().Get("created") == "1"
-	h.renderPage(w, r, http.StatusOK, "products.html", i18n.T(lang, "products.title"), lang, produtosData{Products: products, Created: created})
+	perPage := repo.ProductPageSize
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	hasPrev := page > 1
+	hasNext := page < totalPages
+	var prevURL, nextURL string
+	if hasPrev {
+		prevURL = productPageURL(page-1, q)
+	}
+	if hasNext {
+		nextURL = productPageURL(page+1, q)
+	}
+	pages := make([]pageLink, 0, totalPages)
+	for i := 1; i <= totalPages; i++ {
+		pages = append(pages, pageLink{Num: i, URL: productPageURL(i, q), Active: i == page})
+	}
+	h.renderPage(w, r, http.StatusOK, "products.html", i18n.T(lang, "products.title"), lang, produtosData{
+		Products:   products,
+		Created:    created,
+		Q:          q,
+		Page:       page,
+		Total:      total,
+		TotalPages: totalPages,
+		HasPrev:    hasPrev,
+		HasNext:    hasNext,
+		PrevURL:    prevURL,
+		NextURL:    nextURL,
+		Pages:      pages,
+	})
 }
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -40,6 +41,7 @@ type statusFilter struct {
 	Key    string
 	Label  string
 	Active bool
+	URL    string
 }
 
 func (f statusFilter) label(lang i18n.Lang) string {
@@ -50,9 +52,42 @@ func (f statusFilter) label(lang i18n.Lang) string {
 	return i18n.T(lang, "filter."+name)
 }
 
+type pageLink struct {
+	Num    int
+	URL    string
+	Active bool
+}
+
 type faturaListData struct {
-	Filters []statusFilter
-	Rows    []invoiceRow
+	Filters       []statusFilter
+	Rows          []invoiceRow
+	Q             string
+	Page          int
+	Total         int
+	TotalPages    int
+	HasPrev       bool
+	HasNext       bool
+	PrevURL       string
+	NextURL       string
+	Pages         []pageLink
+	CurrentStatus string
+}
+
+func invoicePageURL(page int, q, status string) string {
+	v := url.Values{}
+	if status != "" {
+		v.Set("status", status)
+	}
+	if q != "" {
+		v.Set("q", q)
+	}
+	if page > 1 {
+		v.Set("page", strconv.Itoa(page))
+	}
+	if len(v) == 0 {
+		return "/invoices"
+	}
+	return "/invoices?" + v.Encode()
 }
 
 func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
@@ -62,16 +97,15 @@ func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
 		failNotFound(w, lang)
 		return
 	}
-
-	var (
-		invoices []*model.Invoice
-		err      error
-	)
-	if status == "" {
-		invoices, err = h.repos.Invoices.List(r.Context())
-	} else {
-		invoices, err = h.repos.Invoices.ListByStatus(r.Context(), status)
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	page := 1
+	if s := r.URL.Query().Get("page"); s != "" {
+		if p, err := strconv.Atoi(s); err == nil && p > 0 {
+			page = p
+		}
 	}
+
+	invoices, total, err := h.repos.Invoices.ListPaginated(r.Context(), page, q, status)
 	if err != nil {
 		writeRepoErr(w, lang, err)
 		return
@@ -84,12 +118,52 @@ func (h *Handlers) listInvoices(w http.ResponseWriter, r *http.Request) {
 
 	filters := make([]statusFilter, 0, len(invoiceStatusFilters))
 	for _, f := range invoiceStatusFilters {
-		filters = append(filters, statusFilter{Key: f.Key, Label: f.label(lang), Active: f.Key == status})
+		v := url.Values{}
+		if f.Key != "" {
+			v.Set("status", f.Key)
+		}
+		if q != "" {
+			v.Set("q", q)
+		}
+		u := "/invoices"
+		if len(v) > 0 {
+			u += "?" + v.Encode()
+		}
+		filters = append(filters, statusFilter{Key: f.Key, Label: f.label(lang), Active: f.Key == status, URL: u})
+	}
+
+	perPage := repo.InvoicePageSize
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	hasPrev := page > 1
+	hasNext := page < totalPages
+	var prevURL, nextURL string
+	if hasPrev {
+		prevURL = invoicePageURL(page-1, q, status)
+	}
+	if hasNext {
+		nextURL = invoicePageURL(page+1, q, status)
+	}
+	pages := make([]pageLink, 0, totalPages)
+	for i := 1; i <= totalPages; i++ {
+		pages = append(pages, pageLink{Num: i, URL: invoicePageURL(i, q, status), Active: i == page})
 	}
 
 	h.renderPage(w, r, http.StatusOK, "invoices.html", i18n.T(lang, "invoices.title"), lang, faturaListData{
-		Filters: filters,
-		Rows:    rows,
+		Filters:       filters,
+		Rows:          rows,
+		Q:             q,
+		Page:          page,
+		Total:         total,
+		TotalPages:    totalPages,
+		HasPrev:       hasPrev,
+		HasNext:       hasNext,
+		PrevURL:       prevURL,
+		NextURL:       nextURL,
+		Pages:         pages,
+		CurrentStatus: status,
 	})
 }
 
@@ -142,7 +216,7 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	products, err := h.repos.Products.List(r.Context())
+	products, err := h.repos.Products.ListActive(r.Context())
 	if err != nil {
 		writeRepoErr(w, lang, err)
 		return
@@ -157,8 +231,10 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	today := time.Now()
+	preselected := r.URL.Query().Get("client_id")
 	data := &faturaFormData{
-		Clients:   clientOptions(clients, "", lang),
+		ClientID:  preselected,
+		Clients:   clientOptions(clients, preselected, lang),
 		Products:  opts,
 		IssueDate: today.Format("2006-01-02"),
 		DueDate:   today.AddDate(0, 0, 15).Format("2006-01-02"),
@@ -233,7 +309,7 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	options := clientOptions(clients, r.FormValue("client_id"), lang)
 
-	products, err := h.repos.Products.List(ctx)
+	products, err := h.repos.Products.ListActive(ctx)
 	if err != nil {
 		writeRepoErr(w, lang, err)
 		return

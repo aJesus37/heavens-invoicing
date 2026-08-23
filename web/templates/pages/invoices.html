@@ -6,9 +6,16 @@
 
 <div class="tabs">
 {{range .Filters}}
-<a href="{{if .Key}}/invoices?status={{.Key}}{{else}}/invoices{{end}}" {{if .Active}}class="active"{{end}}>{{.Label}}</a>
+<a href="{{.URL}}" {{if .Active}}class="active"{{end}}>{{.Label}}</a>
 {{end}}
 </div>
+
+<form method="get" action="/invoices" class="actions" style="margin:1rem 0; gap:0.5rem; align-items:center;">
+{{if .CurrentStatus}}<input type="hidden" name="status" value="{{.CurrentStatus}}">{{end}}
+<input type="search" name="q" value="{{.Q}}" placeholder="{{T "invoices.search_placeholder"}}" aria-label="{{T "invoices.search_label"}}" style="flex:1; max-width:20rem;">
+<button type="submit">{{T "invoices.search_button"}}</button>
+{{if .Q}}<a class="btn btn-secondary" href="{{if .CurrentStatus}}/invoices?status={{.CurrentStatus}}{{else}}/invoices{{end}}">{{T "invoices.search_clear"}}</a>{{end}}
+</form>
 
 <div class="panel">
 <table>
@@ -32,9 +39,20 @@
 	</tr>
 	{{end}}
 {{else}}
-<tr><td colspan="6" class="muted">{{T "invoices.empty"}}</td></tr>
+<tr><td colspan="7" class="muted">{{T "invoices.empty"}}</td></tr>
 {{end}}
 </tbody>
 </table>
 </div>
+
+{{if gt .TotalPages 1}}
+<nav class="pagination" aria-label="Pagination" style="display:flex; gap:0.5rem; align-items:center; justify-content:center; margin-top:1rem;">
+{{if .HasPrev}}<a class="btn btn-secondary" href="{{.PrevURL}}">{{T "pagination.prev"}}</a>{{else}}<span class="btn btn-secondary muted" aria-disabled="true">{{T "pagination.prev"}}</span>{{end}}
+{{range .Pages}}
+{{if .Active}}<strong aria-current="page" style="padding:0.4rem 0.6rem;">{{.Num}}</strong>{{else}}<a href="{{.URL}}" style="padding:0.4rem 0.6rem;">{{.Num}}</a>{{end}}
+{{end}}
+{{if .HasNext}}<a class="btn btn-secondary" href="{{.NextURL}}">{{T "pagination.next"}}</a>{{else}}<span class="btn btn-secondary muted" aria-disabled="true">{{T "pagination.next"}}</span>{{end}}
+</nav>
+<p class="muted" style="text-align:center; margin-top:0.5rem;">{{T "pagination.info" .Page .TotalPages .Total}}</p>
+{{end}}
 {{end}}

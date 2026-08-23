@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/model"
@@ -69,6 +70,50 @@ func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+const ProductPageSize = 20
+
+// ListPaginated returns a page of products filtered by free-text q (LIKE on
+// name/description). Pagination is LIMIT 20 OFFSET (page-1)*20 ordered by name.
+func (r *ProductRepo) ListPaginated(ctx context.Context, page int, q string) ([]*model.Product, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	q = strings.TrimSpace(q)
+	var where string
+	var args []any
+	if q != "" {
+		like := "%" + q + "%"
+		where = "WHERE name LIKE ? OR description LIKE ?"
+		args = append(args, like, like)
+	}
+	var total int
+	countQuery := `SELECT COUNT(*) FROM products ` + where
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count products: %w", err)
+	}
+	limit := ProductPageSize
+	offset := (page - 1) * limit
+	dataArgs := append(append([]any{}, args...), limit, offset)
+	dataQuery := `SELECT ` + productCols + ` FROM products ` + where + ` ORDER BY name LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list products paginated: %w", err)
+	}
+	defer rows.Close()
+	products := make([]*model.Product, 0)
+	for rows.Next() {
+		p, err := scanProduct(rows.Scan)
+		if err != nil {
+			return nil, 0, err
+		}
+		products = append(products, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return products, total, nil
 }
 
 func (r *ProductRepo) List(ctx context.Context) ([]*model.Product, error) {
