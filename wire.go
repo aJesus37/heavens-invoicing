@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jesus/invoice-app/internal/deliver"
@@ -79,15 +80,90 @@ func setupWhatsAppDeliverer(s *whatsapp.Session, pixFallback string) deliver.Del
 	return deliver.NewWhatsApp(s, pixFallback)
 }
 
-// setupTelegram returns the API client when a bot token is configured,
-// along with the admin chat id (possibly empty).
-func setupTelegram(ctx context.Context, s *repo.SettingsRepo) (*telegram.Client, string) {
-	token := settingOr(ctx, s, repo.SettingTelegramBotToken)
-	adminChatID := settingOr(ctx, s, repo.SettingAdminTelegramChatID)
-	if token == "" {
-		return nil, adminChatID
+// TelegramManager holds the live Telegram client and admin chat, and
+// can be hot-reloaded when Settings change — no process restart needed.
+// It implements both telegram API (SendMessage/SendDocument) and
+// deliver.Notifier (Notify) by delegating to the current client under lock.
+type TelegramManager struct {
+	mu          sync.RWMutex
+	token       string
+	adminChatID string
+	client      *telegram.Client
+	repos       *repo.Repos
+	ctx         context.Context
+	cancel      context.CancelFunc
+}
+
+func NewTelegramManager(ctx context.Context, repos *repo.Repos) *TelegramManager {
+	m := &TelegramManager{repos: repos, ctx: ctx}
+	m.Reload(ctx)
+	return m
+}
+
+// Reload re-reads token and chat ID from Settings and restarts the polling
+// loop when they change. Safe to call from any goroutine (e.g., the
+// settings save handler).
+func (m *TelegramManager) Reload(ctx context.Context) {
+	token := settingOr(ctx, m.repos.Settings, repo.SettingTelegramBotToken)
+	chatID := settingOr(ctx, m.repos.Settings, repo.SettingAdminTelegramChatID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if token == m.token && chatID == m.adminChatID {
+		return
 	}
-	return telegram.NewClient(nil, "", token), adminChatID
+	if m.cancel != nil {
+		m.cancel()
+		m.cancel = nil
+	}
+	m.token = token
+	m.adminChatID = chatID
+	if token == "" {
+		m.client = nil
+		log.Println("telegram: disabled (no bot token)")
+		return
+	}
+	m.client = telegram.NewClient(nil, "", token)
+	if chatID == "" {
+		log.Println("telegram: bot configured but no admin chat ID — polling disabled until chat ID is set")
+		return
+	}
+	botCtx, cancel := context.WithCancel(m.ctx)
+	m.cancel = cancel
+	bot := telegram.NewAdminBot(m.client, chatID, m.repos.Invoices, m.repos.Clients, settingsLocale(m.repos.Settings))
+	go runAdminBot(botCtx, bot)
+	log.Println("telegram: bot (re)started")
+}
+
+func (m *TelegramManager) SendMessage(ctx context.Context, chatID, text string) error {
+	m.mu.RLock()
+	c := m.client
+	m.mu.RUnlock()
+	if c == nil {
+		return deliver.ErrNotConfigured
+	}
+	return c.SendMessage(ctx, chatID, text)
+}
+
+func (m *TelegramManager) SendDocument(ctx context.Context, chatID, filename string, content []byte, caption string) error {
+	m.mu.RLock()
+	c := m.client
+	m.mu.RUnlock()
+	if c == nil {
+		return deliver.ErrNotConfigured
+	}
+	return c.SendDocument(ctx, chatID, filename, content, caption)
+}
+
+func (m *TelegramManager) Notify(ctx context.Context, text string) error {
+	m.mu.RLock()
+	c := m.client
+	id := m.adminChatID
+	m.mu.RUnlock()
+	if c == nil || id == "" {
+		return nil
+	}
+	// Reuse the existing notifier helper's behavior (silent on missing config).
+	return telegram.NewNotifier(c, id).Notify(ctx, text)
 }
 
 func setupTelegramDeliverer(c *telegram.Client, pixFallback string) deliver.Deliverer {
@@ -98,7 +174,8 @@ func setupTelegramDeliverer(c *telegram.Client, pixFallback string) deliver.Deli
 }
 
 // tgNotifier wraps the admin notifier; it is a silent no-op whenever the
-// bot or the admin chat is unconfigured.
+// bot or the admin chat is unconfigured. Kept for tests that construct a
+// static notifier.
 func tgNotifier(c *telegram.Client, adminChatID string) deliver.Notifier {
 	return telegram.NewNotifier(c, adminChatID)
 }

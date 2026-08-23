@@ -47,26 +47,26 @@ func main() {
 	if waSession != nil {
 		defer waSession.Close()
 	}
-	tgClient, adminChatID := setupTelegram(ctx, repos.Settings)
-	startAdminBot(ctx, tgClient, adminChatID, repos)
+	tgManager := NewTelegramManager(ctx, repos)
 
 	pixFallback := settingOr(ctx, repos.Settings, repo.SettingDefaultPIXKey)
 	senderInfo := setupSenderInfo(ctx, repos.Settings)
 	router := deliver.NewRouter(repos.Invoices,
-		tgNotifier(tgClient, adminChatID),
+		tgManager,
 		settingsLocale(repos.Settings),
 		setupEmail(ctx, repos.Settings, pixFallback),
 		setupWhatsAppDeliverer(waSession, pixFallback),
-		setupTelegramDeliverer(tgClient, pixFallback),
+		deliver.NewTelegram(tgManager, pixFallback),
 	)
 
-	startScheduler(ctx, repos, router, tgNotifier(tgClient, adminChatID), senderInfo)
+	startScheduler(ctx, repos, router, tgManager, senderInfo)
 
 	authManager := auth.New(repos.Sessions, repos.Settings)
 	webHandlers, err := web.New(repos, router, waSession, senderInfo, authManager)
 	if err != nil {
 		log.Fatalf("web ui: %v", err)
 	}
+	webHandlers.SetTelegramReloader(tgManager.Reload)
 
 	srv := server.New(server.Config{DataDir: dataDir, API: api.New(repos, router, senderInfo), Web: webHandlers.Mux(), Auth: authManager})
 	httpSrv := &http.Server{

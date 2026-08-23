@@ -106,6 +106,9 @@ func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: ignoring unsupported locale value %q", v)
 		}
 	}
+	if h.tgReloader != nil {
+		h.tgReloader(ctx)
+	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 

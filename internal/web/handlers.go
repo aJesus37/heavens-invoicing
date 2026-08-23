@@ -5,6 +5,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"log"
@@ -21,14 +22,15 @@ import (
 
 // Handlers owns every page route plus the small htmx fragment endpoints.
 type Handlers struct {
-	repos   *repo.Repos
-	router  *deliver.Router
-	wa      *whatsapp.Session
-	sender  pdf.SenderInfo
-	pairing *pairingManager
-	auth    *auth.Manager
-	render  *renderer
-	static  http.Handler
+	repos        *repo.Repos
+	router       *deliver.Router
+	wa           *whatsapp.Session
+	sender       pdf.SenderInfo
+	pairing      *pairingManager
+	auth         *auth.Manager
+	render       *renderer
+	static       http.Handler
+	tgReloader   func(context.Context)
 }
 
 // New parses the embedded templates eagerly so a broken template fails at
@@ -54,6 +56,12 @@ func New(r *repo.Repos, router *deliver.Router, wa *whatsapp.Session, sender pdf
 		static:  http.FileServerFS(staticFS),
 	}
 	return h, nil
+}
+
+// SetTelegramReloader registers a callback invoked after Settings are saved
+// so the Telegram bot can be hot-reloaded without a process restart.
+func (h *Handlers) SetTelegramReloader(fn func(context.Context)) {
+	h.tgReloader = fn
 }
 
 func (h *Handlers) Mux() *http.ServeMux {
