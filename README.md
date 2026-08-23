@@ -25,6 +25,22 @@ Self-hosted invoicing for solo/self-hosters. Create clients, products and monthl
 - **PDF** — pure-Go, description wraps (no truncation), `R$` formatting
 - **SQLite** (WAL, single file), zero external services
 
+## Screenshots
+
+| Dashboard | Invoices |
+|-----------|----------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Invoices](docs/screenshots/invoices.png) |
+
+| Clients | Products |
+|---------|----------|
+| ![Clients](docs/screenshots/clients.png) | ![Products](docs/screenshots/products.png) |
+
+| Recurring | Settings |
+|-----------|----------|
+| ![Recurring](docs/screenshots/recurring.png) | ![Settings](docs/screenshots/settings.png) |
+
+> Demo data — seeded dev environment (`en` locale).
+
 ## Quick start — production (recommended)
 
 Prerequisites: `docker` + `docker compose`.
