@@ -18,7 +18,7 @@ import (
 	"github.com/jesus/invoice-app/internal/repo"
 )
 
-const itemRowCount = 5
+const maxInvoiceItems = 20
 
 var invoiceStatusKeys = []string{"draft", "sent", "paid", "overdue", "cancelled"}
 
@@ -105,7 +105,7 @@ type faturaFormData struct {
 	DueDate   string
 	Notes     string
 	PIXKey    string
-	Items     [itemRowCount]itemForm
+	Items     [maxInvoiceItems]itemForm
 	Error     string
 }
 
@@ -163,10 +163,11 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // readItemRows collects the fixed set of item inputs, dropping rows that
-// were left completely empty.
+// were left completely empty. It handles sparse indices (e.g., 0,5,12) up
+// to maxInvoiceItems (JS may add/remove rows leaving gaps).
 func readItemRows(r *http.Request) []itemForm {
-	rows := make([]itemForm, 0, itemRowCount)
-	for i := 0; i < itemRowCount; i++ {
+	rows := make([]itemForm, 0, maxInvoiceItems)
+	for i := 0; i < maxInvoiceItems; i++ {
 		n := strconv.Itoa(i)
 		row := itemForm{
 			Description: strings.TrimSpace(r.FormValue("item_desc_" + n)),

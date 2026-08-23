@@ -2,6 +2,9 @@ package web_test
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -249,4 +252,198 @@ func TestInvoiceFormSingleInitialRow(t *testing.T) {
 	if visibleDescCount != 1 {
 		t.Errorf("expected 1 visible item row (item_desc_0), got %d", visibleDescCount)
 	}
+}
+
+func TestCreateInvoiceDynamicRows(t *testing.T) {
+	t.Run("sparse indices 0,5,12 creates 3 items", func(t *testing.T) {
+		ts, repos := newTestEnv(t)
+		clientID := seedClient(t, repos, "Sparse Client")
+
+		// Use Portuguese route (current); fall back to English if renamed.
+		form := url.Values{
+			"client_id":    {clientID},
+			"issue_date":   {"2026-08-01"},
+			"due_date":     {"2026-08-15"},
+			"item_desc_0":  {"Service A"},
+			"item_qty_0":   {"1"},
+			"item_price_0": {"100,00"},
+			"item_desc_5":  {"Service B"},
+			"item_qty_5":   {"2"},
+			"item_price_5": {"50,00"},
+			"item_desc_12": {"Service C"},
+			"item_qty_12":  {"3"},
+			"item_price_12": {"10,00"},
+		}
+		resp, body := postForm(t, ts, "/faturas/nova", form)
+		if resp.StatusCode == http.StatusNotFound {
+			resp, body = postForm(t, ts, "/invoices/new", form)
+		}
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("sparse POST: got %d want 303\nbody: %s", resp.StatusCode, body)
+		}
+		invoices, err := repos.Invoices.List(context.Background())
+		if err != nil {
+			t.Fatalf("list invoices: %v", err)
+		}
+		if len(invoices) != 1 {
+			t.Fatalf("expected 1 invoice, got %d", len(invoices))
+		}
+		inv, err := repos.Invoices.Get(context.Background(), invoices[0].ID)
+		if err != nil {
+			t.Fatalf("get invoice: %v", err)
+		}
+		if len(inv.Items) != 3 {
+			t.Fatalf("expected 3 items (sparse 0,5,12), got %d", len(inv.Items))
+		}
+		want := map[string]bool{"Service A": false, "Service B": false, "Service C": false}
+		for _, it := range inv.Items {
+			if _, ok := want[it.Description]; ok {
+				want[it.Description] = true
+			}
+		}
+		for desc, found := range want {
+			if !found {
+				t.Errorf("missing item %q in invoice", desc)
+			}
+		}
+		// Verify quantities/prices preserved in order (0,5,12).
+		if inv.Items[0].Quantity != 1 || inv.Items[0].UnitPrice != 10000 {
+			t.Errorf("item 0 mismatch: qty=%d price=%d", inv.Items[0].Quantity, inv.Items[0].UnitPrice)
+		}
+		if inv.Items[1].Quantity != 2 || inv.Items[1].UnitPrice != 5000 {
+			t.Errorf("item 1 (sparse idx 5) mismatch: qty=%d price=%d", inv.Items[1].Quantity, inv.Items[1].UnitPrice)
+		}
+		if inv.Items[2].Quantity != 3 || inv.Items[2].UnitPrice != 1000 {
+			t.Errorf("item 2 (sparse idx 12) mismatch: qty=%d price=%d", inv.Items[2].Quantity, inv.Items[2].UnitPrice)
+		}
+	})
+
+	t.Run("empty gaps are ignored", func(t *testing.T) {
+		ts, repos := newTestEnv(t)
+		clientID := seedClient(t, repos, "Gap Client")
+		form := url.Values{
+			"client_id":    {clientID},
+			"issue_date":   {"2026-08-01"},
+			"due_date":     {"2026-08-15"},
+			"item_desc_0":  {"Keep A"},
+			"item_qty_0":   {"1"},
+			"item_price_0": {"10,00"},
+			// gap at 1 (completely empty) should be ignored
+			"item_desc_2":  {"Keep B"},
+			"item_qty_2":   {"1"},
+			"item_price_2": {"20,00"},
+			// also ensure empty intermediate indices don't create items
+		}
+		resp, body := postForm(t, ts, "/faturas/nova", form)
+		if resp.StatusCode == http.StatusNotFound {
+			resp, body = postForm(t, ts, "/invoices/new", form)
+		}
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("gap POST: got %d want 303\nbody: %s", resp.StatusCode, body)
+		}
+		invoices, err := repos.Invoices.List(context.Background())
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(invoices) != 1 {
+			t.Fatalf("expected 1 invoice, got %d", len(invoices))
+		}
+		inv, err := repos.Invoices.Get(context.Background(), invoices[0].ID)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if len(inv.Items) != 2 {
+			t.Fatalf("expected 2 items with gap ignored, got %d", len(inv.Items))
+		}
+		if inv.Items[0].Description != "Keep A" || inv.Items[1].Description != "Keep B" {
+			t.Errorf("gap items wrong order: %q, %q", inv.Items[0].Description, inv.Items[1].Description)
+		}
+	})
+
+	t.Run("20 items max succeeds", func(t *testing.T) {
+		ts, repos := newTestEnv(t)
+		clientID := seedClient(t, repos, "Max Client")
+		form := url.Values{
+			"client_id":  {clientID},
+			"issue_date": {"2026-08-01"},
+			"due_date":   {"2026-08-15"},
+		}
+		for i := 0; i < 20; i++ {
+			form.Set(fmt.Sprintf("item_desc_%d", i), fmt.Sprintf("Item %d", i))
+			form.Set(fmt.Sprintf("item_qty_%d", i), "1")
+			form.Set(fmt.Sprintf("item_price_%d", i), "10,00")
+		}
+		resp, body := postForm(t, ts, "/faturas/nova", form)
+		if resp.StatusCode == http.StatusNotFound {
+			resp, body = postForm(t, ts, "/invoices/new", form)
+		}
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("20 items POST: got %d want 303\nbody: %s", resp.StatusCode, body)
+		}
+		invoices, err := repos.Invoices.List(context.Background())
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(invoices) != 1 {
+			t.Fatalf("expected 1 invoice, got %d", len(invoices))
+		}
+		inv, err := repos.Invoices.Get(context.Background(), invoices[0].ID)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if len(inv.Items) != 20 {
+			t.Fatalf("expected 20 items, got %d", len(inv.Items))
+		}
+		for i, it := range inv.Items {
+			want := fmt.Sprintf("Item %d", i)
+			if it.Description != want {
+				t.Errorf("item %d: got %q want %q", i, it.Description, want)
+			}
+		}
+	})
+
+	t.Run("21st item is ignored", func(t *testing.T) {
+		ts, repos := newTestEnv(t)
+		clientID := seedClient(t, repos, "Overflow Client")
+		form := url.Values{
+			"client_id":  {clientID},
+			"issue_date": {"2026-08-01"},
+			"due_date":   {"2026-08-15"},
+		}
+		for i := 0; i < 21; i++ {
+			form.Set(fmt.Sprintf("item_desc_%d", i), fmt.Sprintf("Item %d", i))
+			form.Set(fmt.Sprintf("item_qty_%d", i), "1")
+			form.Set(fmt.Sprintf("item_price_%d", i), "10,00")
+		}
+		resp, body := postForm(t, ts, "/faturas/nova", form)
+		if resp.StatusCode == http.StatusNotFound {
+			resp, body = postForm(t, ts, "/invoices/new", form)
+		}
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("21 items POST: got %d want 303 (21st should be ignored)\nbody: %s", resp.StatusCode, body)
+		}
+		invoices, err := repos.Invoices.List(context.Background())
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(invoices) != 1 {
+			t.Fatalf("expected 1 invoice, got %d", len(invoices))
+		}
+		inv, err := repos.Invoices.Get(context.Background(), invoices[0].ID)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if len(inv.Items) != 20 {
+			t.Fatalf("expected 20 items (21st ignored), got %d", len(inv.Items))
+		}
+		for _, it := range inv.Items {
+			if it.Description == "Item 20" {
+				t.Errorf("21st item should have been ignored but found %q", it.Description)
+			}
+		}
+		// Ensure last kept is Item 19.
+		if inv.Items[19].Description != "Item 19" {
+			t.Errorf("last item should be Item 19, got %q", inv.Items[19].Description)
+		}
+	})
 }
