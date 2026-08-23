@@ -311,7 +311,7 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/faturas/"+inv.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/invoices/"+inv.ID, http.StatusSeeOther)
 }
 
 type faturaDetailData struct {
@@ -451,7 +451,7 @@ func (h *Handlers) markInvoicePaidAction(w http.ResponseWriter, r *http.Request)
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/faturas/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/invoices/"+id, http.StatusSeeOther)
 }
 
 // cancellable reports whether an invoice in the given status may be cancelled
@@ -485,5 +485,5 @@ func (h *Handlers) cancelInvoiceAction(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/faturas/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/invoices/"+id, http.StatusSeeOther)
 }

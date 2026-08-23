@@ -95,7 +95,7 @@ func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/clientes/"+created.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/clients/"+created.ID, http.StatusSeeOther)
 }
 
 type clientDetailData struct {
@@ -154,5 +154,5 @@ func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/clientes/"+id, http.StatusSeeOther)
+	http.Redirect(w, r, "/clients/"+id, http.StatusSeeOther)
 }

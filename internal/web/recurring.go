@@ -195,7 +195,7 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
+	http.Redirect(w, r, "/recurring", http.StatusSeeOther)
 }
 
 func (h *Handlers) deleteRecurring(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +204,7 @@ func (h *Handlers) deleteRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
+	http.Redirect(w, r, "/recurring", http.StatusSeeOther)
 }
 
 // toggleRecurring flips a schedule's active flag (pause/resume) and returns
@@ -223,5 +223,5 @@ func (h *Handlers) toggleRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/recorrentes", http.StatusSeeOther)
+	http.Redirect(w, r, "/recurring", http.StatusSeeOther)
 }

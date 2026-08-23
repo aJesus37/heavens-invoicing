@@ -31,7 +31,7 @@ func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	h.renderPage(w, r, http.StatusOK, "produto_form.html", i18n.T(lang, "products.new"), lang, &productForm{Action: "/produtos/novo"})
+	h.renderPage(w, r, http.StatusOK, "produto_form.html", i18n.T(lang, "products.new"), lang, &productForm{Action: "/products/new"})
 }
 
 func formToProduct(r *http.Request) (*model.Product, productForm) {
@@ -51,7 +51,7 @@ func (h *Handlers) createProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, f := formToProduct(r)
-	f.Action = "/produtos/novo"
+	f.Action = "/products/new"
 
 	cents, err := parseReais(lang, f.Price)
 	if err != nil {
@@ -69,7 +69,7 @@ func (h *Handlers) createProduct(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/produtos", http.StatusSeeOther)
+	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 
 func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {
 		Description: p.Description,
 		Price:       formatReais(p.UnitPrice),
 		Active:      p.Active,
-		Action:      "/produtos/" + p.ID + "/editar",
+		Action:      "/products/" + p.ID + "/edit",
 		Editing:     true,
 		ID:          p.ID,
 	}
@@ -107,7 +107,7 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 	cents, err := parseReais(lang, f.Price)
 	if err != nil {
 		f.Error = i18n.T(lang, "error.unit_price", err.Error())
-		f.Action = "/produtos/" + id + "/editar"
+		f.Action = "/products/" + id + "/edit"
 		f.Editing = true
 		f.ID = id
 		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
@@ -115,7 +115,7 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(f.Name) == "" {
 		f.Error = i18n.T(lang, "error.name_required")
-		f.Action = "/produtos/" + id + "/editar"
+		f.Action = "/products/" + id + "/edit"
 		f.Editing = true
 		f.ID = id
 		h.renderPage(w, r, http.StatusBadRequest, "produto_form.html", i18n.T(lang, "products.edit_title"), lang, &f)
@@ -129,5 +129,5 @@ func (h *Handlers) updateProduct(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/produtos", http.StatusSeeOther)
+	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }

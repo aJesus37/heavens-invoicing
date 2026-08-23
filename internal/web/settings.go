@@ -106,7 +106,7 @@ func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {
 			log.Printf("web: ignoring unsupported locale value %q", v)
 		}
 	}
-	http.Redirect(w, r, "/configuracoes?saved=1", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 
 // waStatusData feeds the auto-refreshing WhatsApp fragment.
@@ -128,7 +128,7 @@ func (h *Handlers) whatsappStatusFragment(w http.ResponseWriter, r *http.Request
 		case state == pairPending && qr != "":
 			data.State = pairPending
 			// Cache-buster so the <img> refetches on every fragment poll.
-			data.QRPath = fmt.Sprintf("/configuracoes/whatsapp/qr.png?v=%d", time.Now().Unix())
+			data.QRPath = fmt.Sprintf("/settings/whatsapp/qr.png?v=%d", time.Now().Unix())
 		case state == pairFailed:
 			data.State = pairFailed
 			data.ErrMsg = errMsg
