@@ -69,9 +69,12 @@ func buildInvoiceRows(ctx context.Context, h *Handlers, invoices []*model.Invoic
 }
 
 type dashData struct {
-	Pending  []invoiceRow
-	Upcoming []recurringRow
-	Recent   []invoiceRow
+	Pending      []invoiceRow
+	PendingTotal int64
+	OverdueCount int
+	Upcoming     []recurringRow
+	Recent       []invoiceRow
+	RecentTotal  int64
 }
 
 func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -124,6 +127,19 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	for _, inv := range invoices {
 		invoiceNumbers[inv.ID] = inv.Number
 	}
+	var pendingTotal int64
+	var overdueCount int
+	for _, row := range pendingRows {
+		pendingTotal += row.Total
+		if row.Status == "overdue" {
+			overdueCount++
+		}
+	}
+	var recentTotal int64
+	for _, row := range recentRows {
+		recentTotal += row.Total
+	}
+
 	upcoming := make([]recurringRow, 0, len(schedules))
 	for _, s := range schedules {
 		next := truncDay(s.NextSendDate)
@@ -146,8 +162,11 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderPage(w, r, http.StatusOK, "dashboard.html", i18n.T(lang, "dash.title"), lang, dashData{
-		Pending:  pendingRows,
-		Upcoming: upcoming,
-		Recent:   recentRows,
+		Pending:      pendingRows,
+		PendingTotal: pendingTotal,
+		OverdueCount: overdueCount,
+		Upcoming:     upcoming,
+		Recent:       recentRows,
+		RecentTotal:  recentTotal,
 	})
 }

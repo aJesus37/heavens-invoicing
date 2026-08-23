@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/jesus/invoice-app/internal/i18n"
 	"github.com/jesus/invoice-app/internal/model"
 	"github.com/jesus/invoice-app/internal/pdf"
 	"github.com/jesus/invoice-app/internal/repo"
@@ -259,7 +260,11 @@ func (a *api) invoicePDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("fatura-%06d.pdf", inv.Number)
+	prefix := "fatura-"
+	if i18n.Resolve(client.Language) == i18n.En {
+		prefix = "invoice-"
+	}
+	filename := fmt.Sprintf("%s%06d.pdf", prefix, inv.Number)
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	w.Header().Set("Content-Length", fmt.Sprint(buf.Len()))
