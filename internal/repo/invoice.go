@@ -58,6 +58,29 @@ func (r *InvoiceRepo) Create(ctx context.Context, inv *model.Invoice) error {
 	inv.Subtotal = subtotal
 	inv.Total = subtotal
 
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		err := r.createOnce(ctx, inv)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if !isRetryableInvoiceError(err) {
+			return err
+		}
+		if attempt == 4 {
+			break
+		}
+		if ctx.Err() != nil {
+			return err
+		}
+		// brief backoff to let the winning transaction commit and release the lock
+		time.Sleep(time.Duration(attempt+1) * 10 * time.Millisecond)
+	}
+	return lastErr
+}
+
+func (r *InvoiceRepo) createOnce(ctx context.Context, inv *model.Invoice) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("create invoice: %w", err)
@@ -92,6 +115,46 @@ func (r *InvoiceRepo) Create(ctx context.Context, inv *model.Invoice) error {
 		return fmt.Errorf("create invoice: %w", err)
 	}
 	return nil
+}
+
+func isRetryableInvoiceError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "UNIQUE constraint failed") {
+		return true
+	}
+	if strings.Contains(msg, "database is locked") {
+		return true
+	}
+	if strings.Contains(msg, "database table is locked") {
+		return true
+	}
+	if strings.Contains(msg, "SQLITE_BUSY") {
+		return true
+	}
+	if strings.Contains(msg, "SQLITE_LOCKED") {
+		return true
+	}
+	var coder interface{ Code() int }
+	if errors.As(err, &coder) {
+		code := coder.Code()
+		// 5 SQLITE_BUSY, 6 SQLITE_LOCKED, 19 SQLITE_CONSTRAINT, 2067 SQLITE_CONSTRAINT_UNIQUE, 1555 PRIMARYKEY
+		if code == 5 || code == 6 {
+			return true
+		}
+		// extended busy codes have primary 5/6
+		if code&0xFF == 5 || code&0xFF == 6 {
+			return true
+		}
+		if code == 19 || code == 2067 || code == 1555 {
+			if strings.Contains(msg, "UNIQUE") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *InvoiceRepo) Get(ctx context.Context, id string) (*model.Invoice, error) {
