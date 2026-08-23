@@ -151,6 +151,7 @@
   "group.smtp": "E-mail (SMTP)",
   "group.telegram": "Telegram",
   "group.whatsapp": "WhatsApp",
+  "hint.no_drafts_link": "Nenhuma fatura rascunho — <a href=\"/invoices/new\">crie uma fatura rascunho</a> primeiro. Rascunhos são usados como modelos recorrentes.",
   "hint.price_format": "Use vírgula como separador decimal, ex.: 1500,00.",
   "hint.recurring_list": "A cada disparo o agendador clona a fatura modelo como novo rascunho e envia pelo método escolhido.",
   "hint.recurring_template": "A cada disparo o agendador clona este rascunho com nova numeração e datas.",

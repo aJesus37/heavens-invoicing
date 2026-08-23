@@ -151,6 +151,7 @@
   "group.smtp": "E-mail (SMTP)",
   "group.telegram": "Telegram",
   "group.whatsapp": "WhatsApp",
+  "hint.no_drafts_link": "No draft invoices yet — <a href=\"/invoices/new\">create a draft invoice</a> first. Drafts are used as recurring templates.",
   "hint.price_format": "Use commas for thousands and a period for decimals, e.g.: 1,500.00.",
   "hint.recurring_list": "On each fire the scheduler clones the template invoice as a new draft and sends it through the chosen method.",
   "hint.recurring_template": "On each fire the scheduler clones this draft with a new number and dates.",

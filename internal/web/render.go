@@ -19,7 +19,7 @@ import (
 // stubs so parsing succeeds; every render swaps in locale/token-bound
 // overrides (see bindLang), so the stubs themselves never reach users.
 var funcs = template.FuncMap{
-	"T":         func(key string, args ...any) string { return "!" + key },
+	"T":         func(key string, args ...any) template.HTML { return template.HTML("!" + key) },
 	"CSRF":      func() string { return "" },
 	"brl":       pdf.FormatBRL,
 	"dtbr":      func(t time.Time) string { return t.Format("02/01/2006") },
@@ -39,7 +39,7 @@ func bindLang(tpl *template.Template, lang i18n.Lang, csrf string) (*template.Te
 		return nil, err
 	}
 	return clone.Funcs(template.FuncMap{
-		"T":    func(key string, args ...any) string { return i18n.T(lang, key, args...) },
+		"T":    func(key string, args ...any) template.HTML { return template.HTML(i18n.T(lang, key, args...)) },
 		"CSRF": func() string { return csrf },
 	}), nil
 }
