@@ -7,6 +7,7 @@
   "admin.summary_invoice_sent": "Invoice #%06d sent to %s via %s",
   "admin.summary_reminder_sent": "Reminder of invoice #%06d sent to %s via %s",
   "app.name": "Heaven's Invoicing",
+  "footer.developed": "Developed with love by Heaven Labs",
   "auth.confirm_password": "Confirm password",
   "auth.error_csrf": "security check failed — please reload the page and try again",
   "auth.error_invalid": "Incorrect password.",

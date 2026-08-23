@@ -7,6 +7,7 @@
   "admin.summary_invoice_sent": "Fatura #%06d enviada para %s via %s",
   "admin.summary_reminder_sent": "Lembrete da fatura #%06d enviado para %s via %s",
   "app.name": "Heaven's Invoicing",
+  "footer.developed": "Desenvolvido com amor por Heaven Labs",
   "auth.confirm_password": "Confirmar senha",
   "auth.error_csrf": "verificação de segurança falhou — recarregue a página e tente novamente",
   "auth.error_invalid": "Senha incorreta.",

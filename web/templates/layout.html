@@ -67,5 +67,8 @@ document.addEventListener('htmx:config-request', function (evt) {
 <main>
 {{block "content" .Data}}<p>{{T "dash.empty_recent"}}</p>{{end}}
 </main>
+<footer class="site-footer">
+<p>{{T "footer.developed"}} · <a href="https://github.com/ajesus37/heavens-invoicing" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/ajesus37/heavens-invoicing/blob/master/LICENSE" target="_blank" rel="noopener">MIT</a></p>
+</footer>
 </body>
 </html>

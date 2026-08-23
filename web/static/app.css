@@ -255,3 +255,14 @@ button:hover, .btn:hover { background: var(--accent-dark); }
 #send-resultados ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
 
 .qr-img { image-rendering: pixelated; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+
+.site-footer {
+	text-align: center;
+	padding: 1.5rem 1rem;
+	margin-top: 2rem;
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+.site-footer a { color: var(--muted); text-decoration: underline; }
+.site-footer a:hover { color: var(--text); }
