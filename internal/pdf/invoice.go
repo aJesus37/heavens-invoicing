@@ -222,18 +222,52 @@ func drawItems(p *fpdf.Fpdf, lang i18n.Lang, inv model.Invoice) {
 
 	setRegular(p)
 	for _, it := range inv.Items {
-		desc := truncate(p, it.Description, itemCols[1].width-2)
-		cells := []string{
-			fmt.Sprintf("%d", it.Quantity),
-			desc,
-			FormatBRL(it.UnitPrice),
-			FormatBRL(it.Total),
+		// Description wraps instead of truncating; compute row height from
+		// wrapped lines so the full text is readable. Other columns share
+		// the same height and get a single bottom border.
+		// Use the original UTF-8 description for SplitText (it expects UTF-8
+		// runes); tr() is only for rendering.
+		descW := itemCols[1].width - 2
+		rawDesc := it.Description
+		if strings.TrimSpace(rawDesc) == "" {
+			rawDesc = " "
 		}
-		rowH := lineHeight + 2
-		for i, c := range cells {
-			p.CellFormat(itemCols[i].width, rowH, c, "B", 0, itemCols[i].align, false, 0, "")
+		lines := p.SplitText(rawDesc, descW)
+		if len(lines) == 0 {
+			lines = []string{rawDesc}
 		}
-		p.Ln(-1)
+		rowH := float64(len(lines))*lineHeight + 2
+		if rowH < lineHeight+2 {
+			rowH = lineHeight + 2
+		}
+		_, pageH := p.GetPageSize()
+		if p.GetY()+rowH > pageH-margin {
+			p.AddPage()
+			setRegular(p)
+		}
+		startY := p.GetY()
+		startX := margin
+		xQty := startX
+		xDesc := startX + itemCols[0].width
+		xUnit := xDesc + itemCols[1].width
+		xTotal := xUnit + itemCols[2].width
+
+		// Qty (top-aligned, full row height)
+		p.SetXY(xQty, startY)
+		p.CellFormat(itemCols[0].width, rowH, tr(fmt.Sprintf("%d", it.Quantity)), "", 0, itemCols[0].align, false, 0, "")
+		// Description (wrapped)
+		p.SetXY(xDesc, startY)
+		p.MultiCell(itemCols[1].width, lineHeight, tr(it.Description), "", itemCols[1].align, false)
+		// Unit and total share the same row height, drawn at startY
+		p.SetXY(xUnit, startY)
+		p.CellFormat(itemCols[2].width, rowH, tr(FormatBRL(it.UnitPrice)), "", 0, itemCols[2].align, false, 0, "")
+		p.SetXY(xTotal, startY)
+		p.CellFormat(itemCols[3].width, rowH, tr(FormatBRL(it.Total)), "", 0, itemCols[3].align, false, 0, "")
+		// Single bottom border for the row
+		p.SetDrawColor(colorLine[0], colorLine[1], colorLine[2])
+		p.SetLineWidth(0.3)
+		p.Line(margin, startY+rowH, margin+contentSize, startY+rowH)
+		p.SetY(startY + rowH)
 	}
 	p.Ln(4)
 }
