@@ -12,7 +12,7 @@ import (
 func TestRecurringTableColspan(t *testing.T) {
 	ts, repos := newTestEnv(t)
 
-	// 1. Empty state: GET /recurring should have 9 <th> and colspan="9"
+	// 1. Empty state: GET /recurring should have 8 <th> and colspan="8" (Actions column consolidated)
 	status, body := get(t, ts, "/recurring")
 	if status != 200 {
 		t.Fatalf("GET /recurring: got %d want 200\nbody: %s", status, body)
@@ -20,15 +20,15 @@ func TestRecurringTableColspan(t *testing.T) {
 
 	// Count <th> elements: use "<th>" and "<th " to avoid matching <thead>
 	thCount := strings.Count(body, "<th>") + strings.Count(body, "<th ")
-	if thCount != 9 {
-		t.Errorf("header th count = %d, want 9 (body emits 9 td; mismatch breaks alignment)", thCount)
+	if thCount != 8 {
+		t.Errorf("header th count = %d, want 8 (body emits 8 td; mismatch breaks alignment)", thCount)
 	}
 
-	if !strings.Contains(body, `colspan="9"`) {
-		t.Errorf("empty state colspan should be 9, body missing colspan=\"9\"; got body snippet: %s", snippet(body, 2000))
+	if !strings.Contains(body, `colspan="8"`) {
+		t.Errorf("empty state colspan should be 8, body missing colspan=\"8\"; got body snippet: %s", snippet(body, 2000))
 	}
-	if strings.Contains(body, `colspan="8"`) {
-		t.Errorf("found stale colspan=\"8\", should be 9")
+	if strings.Contains(body, `colspan="9"`) {
+		t.Errorf("found stale colspan=\"9\", should be 8")
 	}
 
 	// Check overflow wrapper around table for mobile
@@ -80,10 +80,10 @@ func TestRecurringTableColspan(t *testing.T) {
 		t.Fatalf("GET /recurring with row: got %d want 200", status)
 	}
 
-	// Re-check th count still 9
+	// Re-check th count still 8
 	thCount = strings.Count(body, "<th>") + strings.Count(body, "<th ")
-	if thCount != 9 {
-		t.Errorf("with data: header th count = %d, want 9", thCount)
+	if thCount != 8 {
+		t.Errorf("with data: header th count = %d, want 8", thCount)
 	}
 
 	// Count td in first data row (between first <tr> after <tbody> and </tr>)
@@ -109,8 +109,8 @@ func TestRecurringTableColspan(t *testing.T) {
 	if tdCount != thCount {
 		t.Errorf("row td count = %d, header th count = %d, should match; row snippet: %s", tdCount, thCount, snippet(rowHTML, 500))
 	}
-	if tdCount != 9 {
-		t.Errorf("row td count = %d, want 9", tdCount)
+	if tdCount != 8 {
+		t.Errorf("row td count = %d, want 8", tdCount)
 	}
 
 	// 3. CSS should provide overflow handling

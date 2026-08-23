@@ -60,6 +60,7 @@
   "clients.search_label": "Search clients",
   "clients.search_placeholder": "Search clients...",
   "clients.title": "Clients",
+  "col.actions": "Actions",
   "col.active": "Active",
   "col.address": "City/Address",
   "col.client": "Client",

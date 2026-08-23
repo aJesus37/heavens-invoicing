@@ -231,6 +231,9 @@ button:hover, .btn:hover { background: var(--accent-dark); }
 .btn-danger:hover { background: var(--bad); color: #fff; }
 
 .actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.row-actions { display: flex; gap: 0.35rem; align-items: center; flex-wrap: nowrap; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+.btn-sm.btn-danger { padding: 0.25rem 0.6rem; }
 
 .error-banner {
 	background: #fdeceb;
