@@ -1,4 +1,5 @@
 {{define "content"}}
+{{if .Created}}<div class="ok-banner">{{T "invoices.created"}}</div>{{end}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "detail.title" .Inv.Number}} {{template "statusBadge" .Inv}}</h1>
 <a class="btn btn-secondary" href="/api/invoices/{{.Inv.ID}}/pdf">{{T "detail.download_pdf"}}</a>

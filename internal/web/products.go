@@ -19,6 +19,11 @@ type productForm struct {
 	ID          string
 }
 
+type produtosData struct {
+	Products []*model.Product
+	Created  bool
+}
+
 func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
 	products, err := h.repos.Products.List(r.Context())
@@ -26,7 +31,8 @@ func (h *Handlers) listProducts(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	h.renderPage(w, r, http.StatusOK, "products.html", i18n.T(lang, "products.title"), lang, products)
+	created := r.URL.Query().Get("created") == "1"
+	h.renderPage(w, r, http.StatusOK, "products.html", i18n.T(lang, "products.title"), lang, produtosData{Products: products, Created: created})
 }
 
 func (h *Handlers) newProductForm(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +75,7 @@ func (h *Handlers) createProduct(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/products", http.StatusSeeOther)
+	http.Redirect(w, r, "/products?created=1", http.StatusSeeOther)
 }
 
 func (h *Handlers) editProductForm(w http.ResponseWriter, r *http.Request) {

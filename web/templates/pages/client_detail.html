@@ -1,4 +1,6 @@
 {{define "content"}}
+{{if .Created}}<div class="ok-banner">{{T "clients.created"}}</div>{{end}}
+{{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 <h1>{{.Client.Name}}</h1>
 
 <div class="panel">

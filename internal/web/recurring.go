@@ -75,7 +75,8 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, row)
 	}
-	h.renderPage(w, r, http.StatusOK, "recurring.html", i18n.T(lang, "recurring.title"), lang, recorrentesData{Rows: rows})
+	created := r.URL.Query().Get("created") == "1"
+	h.renderPage(w, r, http.StatusOK, "recurring.html", i18n.T(lang, "recurring.title"), lang, recorrentesData{Rows: rows, Created: created})
 }
 
 type recorrenteFormData struct {
@@ -224,7 +225,7 @@ func (h *Handlers) createRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/recurring", http.StatusSeeOther)
+	http.Redirect(w, r, "/recurring?created=1", http.StatusSeeOther)
 }
 
 func (h *Handlers) deleteRecurring(w http.ResponseWriter, r *http.Request) {

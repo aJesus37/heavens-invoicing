@@ -1,4 +1,5 @@
 {{define "content"}}
+{{if .Created}}<div class="ok-banner">{{T "products.created"}}</div>{{end}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "products.title"}}</h1>
 <a class="btn" href="/products/new">{{T "products.new"}}</a>
@@ -10,8 +11,8 @@
 <tr><th>{{T "col.name"}}</th><th>{{T "col.description"}}</th><th class="num">{{T "col.unit_price"}}</th><th>{{T "col.currency"}}</th><th>{{T "col.active"}}</th></tr>
 </thead>
 <tbody>
-{{if .}}
-{{range .}}
+{{if .Products}}
+{{range .Products}}
 <tr>
 <td><a href="/products/{{.ID}}/edit">{{.Name}}</a></td>
 <td>{{with .Description}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>

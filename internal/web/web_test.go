@@ -149,6 +149,7 @@ func TestClientUpdateFlow(t *testing.T) {
 	form := url.Values{"name": {"Beta"}}
 	resp, _ := postForm(t, ts, "/clients/new", form)
 	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clients/")
+	id = strings.Split(id, "?")[0]
 
 	resp, body := postForm(t, ts, "/clients/"+id, url.Values{
 		"name":  {"Beta SA"},
@@ -206,6 +207,7 @@ func TestClientLanguageSelectFlow(t *testing.T) {
 		t.Fatalf("create with language: got %d want 303", resp.StatusCode)
 	}
 	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clients/")
+	id = strings.Split(id, "?")[0]
 	got, err := repos.Clients.Get(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)

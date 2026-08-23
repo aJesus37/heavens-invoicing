@@ -95,12 +95,14 @@ func (h *Handlers) createClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/clients/"+created.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/clients/"+created.ID+"?created=1", http.StatusSeeOther)
 }
 
 type clientDetailData struct {
 	Client   *model.Client
 	Invoices []invoiceRow
+	Created  bool
+	Error    string
 }
 
 func (h *Handlers) showClient(w http.ResponseWriter, r *http.Request) {
@@ -120,9 +122,11 @@ func (h *Handlers) showClient(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
+	created := r.URL.Query().Get("created") == "1"
 	h.renderPage(w, r, http.StatusOK, "client_detail.html", client.Name, lang, clientDetailData{
 		Client:   client,
 		Invoices: rows,
+		Created:  created,
 	})
 }
 
@@ -140,12 +144,29 @@ func (h *Handlers) updateClient(w http.ResponseWriter, r *http.Request) {
 	c, _ := formToClient(r)
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
-		http.Error(w, i18n.T(lang, "error.name_required"), http.StatusBadRequest)
+		invoices, _ := h.repos.Invoices.ListByClient(r.Context(), id)
+		rows, _ := buildInvoiceRows(r.Context(), h, invoices)
+		c.ID = id
+		if c.Language == "" {
+			c.Language = string(defaultLang)
+		}
+		h.renderPage(w, r, http.StatusBadRequest, "client_detail.html", i18n.T(lang, "clients.detail.edit"), lang, clientDetailData{
+			Client:   c,
+			Invoices: rows,
+			Error:    i18n.T(lang, "error.name_required"),
+		})
 		return
 	}
 	clientLang, ok := i18n.Normalize(c.Language)
 	if !ok {
-		http.Error(w, i18n.T(lang, "error.language_invalid"), http.StatusBadRequest)
+		invoices, _ := h.repos.Invoices.ListByClient(r.Context(), id)
+		rows, _ := buildInvoiceRows(r.Context(), h, invoices)
+		c.ID = id
+		h.renderPage(w, r, http.StatusBadRequest, "client_detail.html", i18n.T(lang, "clients.detail.edit"), lang, clientDetailData{
+			Client:   c,
+			Invoices: rows,
+			Error:    i18n.T(lang, "error.language_invalid"),
+		})
 		return
 	}
 	c.Language = string(clientLang)

@@ -18,6 +18,9 @@ import (
 	"github.com/jesus/invoice-app/internal/repo"
 )
 
+// maxInvoiceItems is the hard limit for line items per invoice (I2). The
+// invoice form disables "Add item" at this count and shows an inline
+// error (error.items_limit); the server also caps at this value.
 const maxInvoiceItems = 20
 
 var invoiceStatusKeys = []string{"draft", "sent", "paid", "overdue", "cancelled"}
@@ -107,6 +110,7 @@ type faturaFormData struct {
 	PIXKey    string
 	Items     [maxInvoiceItems]itemForm
 	Error     string
+	MaxItems  int
 }
 
 type selectOption struct {
@@ -158,6 +162,7 @@ func (h *Handlers) newInvoiceForm(w http.ResponseWriter, r *http.Request) {
 		Products:  opts,
 		IssueDate: today.Format("2006-01-02"),
 		DueDate:   today.AddDate(0, 0, 15).Format("2006-01-02"),
+		MaxItems:  maxInvoiceItems,
 	}
 	h.renderPage(w, r, http.StatusOK, "invoice_new.html", i18n.T(lang, "invoices.new_title"), lang, data)
 }
@@ -254,6 +259,7 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 			Notes:     r.FormValue("notes"),
 			PIXKey:    strings.TrimSpace(r.FormValue("pix_key")),
 			Error:     msg,
+			MaxItems:  maxInvoiceItems,
 		}
 		copy(data.Items[:], readItemRows(r))
 		h.renderPage(w, r, code, "invoice_new.html", i18n.T(lang, "invoices.new_title"), lang, data)
@@ -311,7 +317,7 @@ func (h *Handlers) createInvoice(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
-	http.Redirect(w, r, "/invoices/"+inv.ID, http.StatusSeeOther)
+	http.Redirect(w, r, "/invoices/"+inv.ID+"?created=1", http.StatusSeeOther)
 }
 
 type faturaDetailData struct {
@@ -320,6 +326,7 @@ type faturaDetailData struct {
 	EffectivePix *string
 	SendMethods  []selectOption
 	CanCancel    bool
+	Created      bool
 }
 
 func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
@@ -340,6 +347,7 @@ func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
 		methods = append(methods, selectOption{Value: m, Label: i18n.T(lang, "method."+m)})
 	}
 
+	created := r.URL.Query().Get("created") == "1"
 	h.renderPage(w, r, http.StatusOK, "invoice_detail.html",
 		i18n.T(lang, "detail.title", inv.Number),
 		lang,
@@ -349,6 +357,7 @@ func (h *Handlers) showInvoice(w http.ResponseWriter, r *http.Request) {
 			EffectivePix: pdf.PixKeyFor(*inv, h.sender),
 			SendMethods:  methods,
 			CanCancel:    cancellable(inv.Status),
+			Created:      created,
 		})
 }
 

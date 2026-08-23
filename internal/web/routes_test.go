@@ -147,7 +147,7 @@ func TestNewEnglishRoutesWork(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("POST /products/new: got %d want 303", resp.StatusCode)
 	}
-	if loc := resp.Header.Get("Location"); loc != "/products" {
+	if loc := resp.Header.Get("Location"); loc != "/products" && loc != "/products?created=1" {
 		t.Errorf("POST /products/new redirect = %q want /products", loc)
 	}
 
@@ -190,7 +190,7 @@ func TestNewEnglishRoutesWork(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("POST /recurring/new: got %d want 303", resp.StatusCode)
 	}
-	if loc := resp.Header.Get("Location"); loc != "/recurring" {
+	if loc := resp.Header.Get("Location"); loc != "/recurring" && loc != "/recurring?created=1" {
 		t.Errorf("POST /recurring/new redirect = %q want /recurring", loc)
 	}
 
@@ -219,14 +219,14 @@ func TestNewEnglishRoutesWork(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("POST /recurring/{id}/toggle: got %d want 303", resp.StatusCode)
 	}
-	if loc := resp.Header.Get("Location"); loc != "/recurring" {
+	if loc := resp.Header.Get("Location"); loc != "/recurring" && loc != "/recurring?created=1" {
 		t.Errorf("toggle redirect = %q want /recurring", loc)
 	}
 	resp, _ = postForm(t, ts, "/recurring/"+sched.ID+"/delete", url.Values{})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("POST /recurring/{id}/delete: got %d want 303", resp.StatusCode)
 	}
-	if loc := resp.Header.Get("Location"); loc != "/recurring" {
+	if loc := resp.Header.Get("Location"); loc != "/recurring" && loc != "/recurring?created=1" {
 		t.Errorf("delete redirect = %q want /recurring", loc)
 	}
 

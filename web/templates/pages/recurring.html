@@ -1,4 +1,5 @@
 {{define "content"}}
+{{if .Created}}<div class="ok-banner">{{T "recurring.created"}}</div>{{end}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "recurring.title"}}</h1>
 <a class="btn" href="/recurring/new">{{T "recurring.new"}}</a>
