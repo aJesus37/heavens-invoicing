@@ -74,7 +74,7 @@ func (h *Handlers) loadSettings(lang i18n.Lang, r *http.Request) *configuracoesD
 
 func (h *Handlers) settingsForm(w http.ResponseWriter, r *http.Request) {
 	lang := h.lang(r)
-	h.renderPage(w, r, http.StatusOK, "configuracoes.html", i18n.T(lang, "settings.title"), lang, h.loadSettings(lang, r))
+	h.renderPage(w, r, http.StatusOK, "settings.html", i18n.T(lang, "settings.title"), lang, h.loadSettings(lang, r))
 }
 
 func (h *Handlers) saveSettings(w http.ResponseWriter, r *http.Request) {
