@@ -44,7 +44,7 @@
 <div class="panel">
 <h2 style="margin-top:0;">{{T "group.telegram"}}</h2>
 {{range .Fields}}
-{{if hasPrefix .Key "telegram_"}}{{template "settingsField" .}}{{end}}
+{{if or (hasPrefix .Key "telegram_") (eq .Key "admin_telegram_chat_id")}}{{template "settingsField" .}}{{end}}
 {{end}}
 <p class="hint">{{T "settings.hint_telegram_restart"}}</p>
 <div class="help">{{THTML "settings.telegram_help"}}</div>
