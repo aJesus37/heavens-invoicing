@@ -26,9 +26,9 @@ func TestWhatsAppConnectCSRFNotBlocked(t *testing.T) {
 
 	// The settings page must now wire htmx CSRF on `document`, not the
 	// (null at script time) body, and must emit the csrf-token meta.
-	settings := getReq(t, ts, "/configuracoes", sess)
+	settings := getReq(t, ts, "/settings", sess)
 	if settings.StatusCode != http.StatusOK {
-		t.Fatalf("GET /configuracoes: got %d want 200", settings.StatusCode)
+		t.Fatalf("GET /settings: got %d want 200", settings.StatusCode)
 	}
 	body := readBody(settings)
 	if strings.Contains(body, "document.body.addEventListener('htmx:config-request'") {
@@ -43,7 +43,7 @@ func TestWhatsAppConnectCSRFNotBlocked(t *testing.T) {
 
 	// Replicate exactly what htmx sends for the pairing button: the
 	// X-CSRF-Token header carrying the double-submit cookie value.
-	req, err := http.NewRequest(http.MethodPost, ts.URL+"/configuracoes/whatsapp/conectar", nil)
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/settings/whatsapp/connect", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,10 +57,10 @@ func TestWhatsAppConnectCSRFNotBlocked(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusForbidden {
-		t.Fatalf("POST /configuracoes/whatsapp/conectar returned 403: htmx CSRF header still not accepted by the gate")
+		t.Fatalf("POST /settings/whatsapp/connect returned 403: htmx CSRF header still not accepted by the gate")
 	}
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("POST /configuracoes/whatsapp/conectar: got %d want 200 (fragment)", resp.StatusCode)
+		t.Fatalf("POST /settings/whatsapp/connect: got %d want 200 (fragment)", resp.StatusCode)
 	}
 }
 

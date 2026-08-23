@@ -24,7 +24,7 @@ func TestSettingsSaveAndReload(t *testing.T) {
 		"smtp_pass":        {"segredo123"},
 		"smtp_from":        {"faturamento@meunegocio.com"},
 	}
-	resp, body := postForm(t, ts, "/configuracoes", form)
+	resp, body := postForm(t, ts, "/settings", form)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("save: got %d want 303\n%s", resp.StatusCode, body)
 	}
@@ -43,7 +43,7 @@ func TestSettingsSaveAndReload(t *testing.T) {
 	}
 
 	// The saved banner shows and stored secrets are never re-rendered.
-	status, pageBody := get(t, ts, "/configuracoes?saved=1")
+	status, pageBody := get(t, ts, "/settings?saved=1")
 	if status != http.StatusOK || !strings.Contains(pageBody, "Configurações salvas.") {
 		t.Fatalf("settings page missing saved banner (status=%d)", status)
 	}
@@ -55,7 +55,7 @@ func TestSettingsSaveAndReload(t *testing.T) {
 	}
 
 	// Blank secret keeps the stored value; other fields still update.
-	resp2, _ := postForm(t, ts, "/configuracoes", url.Values{
+	resp2, _ := postForm(t, ts, "/settings", url.Values{
 		"business_name": {"Outro Nome"},
 		"smtp_host":     {"novo.smtp.com"},
 		"smtp_pass":     {""},
@@ -71,23 +71,23 @@ func TestSettingsSaveAndReload(t *testing.T) {
 func TestWhatsAppStatusFragmentUnavailable(t *testing.T) {
 	ts, _ := newTestEnv(t)
 
-	status, body := get(t, ts, "/configuracoes")
+	status, body := get(t, ts, "/settings")
 	if status != http.StatusOK {
 		t.Fatalf("settings page: got %d want 200", status)
 	}
-	for _, marker := range []string{"Configurações", "wa-status", "/configuracoes/whatsapp/status"} {
+	for _, marker := range []string{"Configurações", "wa-status", "/settings/whatsapp/status"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("settings page missing %q", marker)
 		}
 	}
 
-	fragStatus, fragBody := get(t, ts, "/configuracoes/whatsapp/status")
+	fragStatus, fragBody := get(t, ts, "/settings/whatsapp/status")
 	if fragStatus != http.StatusOK || !strings.Contains(fragBody, "indisponível") {
 		t.Fatalf("fragment without session should say indisponível (status=%d body=%q)", fragStatus, fragBody)
 	}
 
 	// QR endpoint without an active pairing is a clean 404.
-	qrStatus, _ := get(t, ts, "/configuracoes/whatsapp/qr.png")
+	qrStatus, _ := get(t, ts, "/settings/whatsapp/qr.png")
 	if qrStatus != http.StatusNotFound {
 		t.Fatalf("qr without pairing: got %d want 404", qrStatus)
 	}

@@ -11,7 +11,7 @@
 {{if .Pending}}
 {{range .Pending}}
 <tr>
-<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td><a href="/invoices/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
 <td>{{.ClientName}}</td>
 <td>{{dtbr .Due}}</td>
 <td class="num">{{brl .Total}}</td>
@@ -36,7 +36,7 @@
 {{range .Upcoming}}
 <tr>
 <td>{{.ClientName}}</td>
-<td><a href="/faturas/{{.TemplateID}}">#{{printf "%06d" .TemplateNumber}}</a></td>
+<td><a href="/invoices/{{.TemplateID}}">#{{printf "%06d" .TemplateNumber}}</a></td>
 <td>{{.FrequencyLabel}}</td>
 <td>{{dtbr .Next}}</td>
 <td>{{.MethodLabel}}</td>
@@ -59,7 +59,7 @@
 {{if .Recent}}
 {{range .Recent}}
 <tr>
-<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td><a href="/invoices/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
 <td>{{.ClientName}}</td>
 <td>{{dtbr .Issue}}</td>
 <td class="num">{{brl .Total}}</td>

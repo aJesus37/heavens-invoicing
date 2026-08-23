@@ -29,19 +29,19 @@ func TestPagesRenderUnderBothLocales(t *testing.T) {
 		// lang → path → markers that must appear on that page
 		"pt-BR": {
 			"/":              {"Dashboard", "Faturas pendentes", "Recorrentes nos próximos 7 dias"},
-			"/clientes":      {"Clientes", "Novo cliente", "Nenhum cliente cadastrado."},
-			"/produtos":      {"Produtos", "Novo produto", "Preço unitário", "Nenhum produto cadastrado."},
-			"/faturas":       {"Faturas", "Todas", "Rascunho"},
-			"/recorrentes":   {"Recorrentes", "Nova recorrência", "Próximo envio"},
-			"/configuracoes": {"Configurações", "Negócio", "Idioma", "Português"},
+			"/clients":      {"Clientes", "Novo cliente", "Nenhum cliente cadastrado."},
+			"/products":      {"Produtos", "Novo produto", "Preço unitário", "Nenhum produto cadastrado."},
+			"/invoices":       {"Faturas", "Todas", "Rascunho"},
+			"/recurring":   {"Recorrentes", "Nova recorrência", "Próximo envio"},
+			"/settings": {"Configurações", "Negócio", "Idioma", "Português"},
 		},
 		"en": {
 			"/":              {"Dashboard", "Pending invoices", "Recurring in the next 7 days"},
-			"/clientes":      {"Clients", "New client", "No clients registered."},
-			"/produtos":      {"Products", "New product", "Unit price", "No products registered."},
-			"/faturas":       {"Invoices", "All", "Draft"},
-			"/recorrentes":   {"Recurring", "New recurring", "Next send"},
-			"/configuracoes": {"Settings", "Business", "Language", "English"},
+			"/clients":      {"Clients", "New client", "No clients registered."},
+			"/products":      {"Products", "New product", "Unit price", "No products registered."},
+			"/invoices":       {"Invoices", "All", "Draft"},
+			"/recurring":   {"Recurring", "New recurring", "Next send"},
+			"/settings": {"Settings", "Business", "Language", "English"},
 		},
 	}
 	// Labels unique to the OTHER locale that must never appear.
@@ -86,13 +86,13 @@ func TestLocaleSelectorPersistsAndAppliesImmediately(t *testing.T) {
 	ts, _ := newTestEnv(t)
 
 	// Default is pt-BR with Português selected in the selector.
-	_, body := get(t, ts, "/configuracoes")
+	_, body := get(t, ts, "/settings")
 	if !strings.Contains(body, `value="pt-BR" selected`) || !strings.Contains(body, "Português") {
 		t.Fatal("default selector should show Português selected")
 	}
 
 	// Saving English applies on the very next request.
-	resp, _ := postForm(t, ts, "/configuracoes", url.Values{"locale": {"en"}})
+	resp, _ := postForm(t, ts, "/settings", url.Values{"locale": {"en"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("save locale: got %d want 303", resp.StatusCode)
 	}
@@ -102,13 +102,13 @@ func TestLocaleSelectorPersistsAndAppliesImmediately(t *testing.T) {
 			t.Errorf("nav not translated to en after save (missing %q)", marker)
 		}
 	}
-	_, body = get(t, ts, "/configuracoes")
+	_, body = get(t, ts, "/settings")
 	if !strings.Contains(body, `value="en" selected`) || !strings.Contains(body, "English") {
 		t.Error("selector should now show English selected")
 	}
 
 	// A junk locale value is ignored instead of breaking every page.
-	resp, _ = postForm(t, ts, "/configuracoes", url.Values{"locale": {"xx-XX"}})
+	resp, _ = postForm(t, ts, "/settings", url.Values{"locale": {"xx-XX"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("junk locale save: got %d want 303", resp.StatusCode)
 	}
@@ -140,13 +140,13 @@ func TestSendFragmentTranslatesRouterErrors(t *testing.T) {
 	}
 
 	// Default pt-BR: unconfigured channel reports the PT text.
-	respPT, bodyPT := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"email"}})
+	respPT, bodyPT := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"email"}})
 	if respPT.StatusCode != http.StatusOK || !strings.Contains(bodyPT, "não configurado") {
 		t.Fatalf("pt send fragment: got %d want 200 with 'não configurado'\n%s", respPT.StatusCode, bodyPT)
 	}
 
 	setLocale(t, repos, "en")
-	respEN, bodyEN := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"email"}})
+	respEN, bodyEN := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"email"}})
 	if respEN.StatusCode != http.StatusOK || !strings.Contains(bodyEN, "not configured") {
 		t.Fatalf("en send fragment: got %d want 200 with 'not configured'\n%s", respEN.StatusCode, bodyEN)
 	}

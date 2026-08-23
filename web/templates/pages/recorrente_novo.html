@@ -4,7 +4,7 @@
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
 <div class="panel">
-<form method="post" action="/recorrentes/novo" class="stack">
+<form method="post" action="/recurring/new" class="stack">
 {{template "csrfField" .}}
 <div class="grid">
 <div>
@@ -48,7 +48,7 @@
 
 <div class="actions">
 <button type="submit">{{T "button.create_recurring"}}</button>
-<a class="btn btn-secondary" href="/recorrentes">{{T "button.cancel"}}</a>
+<a class="btn btn-secondary" href="/recurring">{{T "button.cancel"}}</a>
 </div>
 </form>
 </div>

@@ -7,12 +7,12 @@
 <p>{{T "wa.pairing_wait"}} <span class="muted">{{T "wa.pairing_hint"}}</span></p>
 {{else if eq .State "failed"}}
 <p style="color:#c0392b;">{{T "wa.failed" .ErrMsg}}</p>
-<button hx-post="/configuracoes/whatsapp/conectar"
+<button hx-post="/settings/whatsapp/connect"
         hx-target="#wa-status"
         hx-swap="innerHTML">{{T "wa.retry"}}</button>
 {{else}}
 <p>{{T "wa.disconnected"}}</p>
-<button hx-post="/configuracoes/whatsapp/conectar"
+<button hx-post="/settings/whatsapp/connect"
         hx-target="#wa-status"
         hx-swap="innerHTML">{{T "wa.generate_qr"}}</button>
 {{end}}

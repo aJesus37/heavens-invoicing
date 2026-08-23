@@ -6,7 +6,7 @@
 
 <div class="panel">
 <dl class="kv">
-<div><dt>{{T "col.client"}}</dt><dd><a href="/clientes/{{.Client.ID}}">{{.Client.Name}}</a></dd></div>
+<div><dt>{{T "col.client"}}</dt><dd><a href="/clients/{{.Client.ID}}">{{.Client.Name}}</a></dd></div>
 <div><dt>{{T "col.issue_date"}}</dt><dd>{{dtbr .Inv.IssueDate}}</dd></div>
 <div><dt>{{T "col.due_date"}}</dt><dd>{{dtbr .Inv.DueDate}}</dd></div>
 {{with .EffectivePix}}
@@ -48,19 +48,19 @@
 <option value="{{.Value}}">{{.Label}}</option>
 {{end}}
 </select>
-<button hx-post="/faturas/{{.Inv.ID}}/enviar"
+<button hx-post="/invoices/{{.Inv.ID}}/send"
         hx-include="#send-method"
         hx-target="#send-resultados"
         hx-swap="innerHTML"
         {{if ne .Inv.Status "draft"}}class="btn-secondary"{{end}}>{{T "detail.send"}}</button>
 {{if ne .Inv.Status "cancelled"}}
-<form method="post" action="/faturas/{{.Inv.ID}}/marcar-paga" style="display:inline;">
+<form method="post" action="/invoices/{{.Inv.ID}}/mark-paid" style="display:inline;">
 {{template "csrfField" .}}
 <button type="submit">{{T "detail.mark_paid"}}</button>
 </form>
 {{end}}
 {{if .CanCancel}}
-<form method="post" action="/faturas/{{.Inv.ID}}/cancelar" style="display:inline;" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
+<form method="post" action="/invoices/{{.Inv.ID}}/cancel" style="display:inline;" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
 {{template "csrfField" .}}
 <button type="submit" class="btn-danger">{{T "invoices.cancel"}}</button>
 </form>

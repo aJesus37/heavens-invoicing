@@ -22,11 +22,11 @@ document.addEventListener('htmx:config-request', function (evt) {
 <header class="topbar">
 <nav aria-label="{{T "nav.aria"}}">
 <a href="/">{{T "nav.dashboard"}}</a>
-<a href="/clientes">{{T "nav.clients"}}</a>
-<a href="/produtos">{{T "nav.products"}}</a>
-<a href="/faturas">{{T "nav.invoices"}}</a>
-<a href="/recorrentes">{{T "nav.recurring"}}</a>
-<a href="/configuracoes">{{T "nav.settings"}}</a>
+<a href="/clients">{{T "nav.clients"}}</a>
+<a href="/products">{{T "nav.products"}}</a>
+<a href="/invoices">{{T "nav.invoices"}}</a>
+<a href="/recurring">{{T "nav.recurring"}}</a>
+<a href="/settings">{{T "nav.settings"}}</a>
 {{if .Authed}}
 <form method="post" action="/logout" class="nav-logout">
 {{template "csrfField" .}}

@@ -34,9 +34,9 @@ func TestNewInvoiceFormShowsProductPicker(t *testing.T) {
 		t.Fatalf("create p2: %v", err)
 	}
 
-	status, body := get(t, ts, "/faturas/nova")
+	status, body := get(t, ts, "/invoices/new")
 	if status != 200 {
-		t.Fatalf("GET /faturas/nova: got %d want 200\nbody: %s", status, body)
+		t.Fatalf("GET /invoices/new: got %d want 200\nbody: %s", status, body)
 	}
 
 	// Both product names should appear as options.
@@ -75,9 +75,9 @@ func TestNewInvoiceFormShowsProductPicker(t *testing.T) {
 
 func TestNewInvoiceFormWithNoProducts(t *testing.T) {
 	ts, _ := newTestEnv(t)
-	status, body := get(t, ts, "/faturas/nova")
+	status, body := get(t, ts, "/invoices/new")
 	if status != 200 {
-		t.Fatalf("GET /faturas/nova (no products): got %d want 200", status)
+		t.Fatalf("GET /invoices/new (no products): got %d want 200", status)
 	}
 	// Should still render the form without panic; picker may be empty.
 	if !strings.Contains(body, `name="item_desc_0"`) {
@@ -88,9 +88,9 @@ func TestNewInvoiceFormWithNoProducts(t *testing.T) {
 
 func TestProductPickerJS(t *testing.T) {
 	ts, _ := newTestEnv(t)
-	status, body := get(t, ts, "/faturas/nova")
+	status, body := get(t, ts, "/invoices/new")
 	if status != 200 {
-		t.Fatalf("GET /faturas/nova: got %d want 200", status)
+		t.Fatalf("GET /invoices/new: got %d want 200", status)
 	}
 	if !strings.Contains(body, "<script>") {
 		t.Error("invoice form missing <script> for product picker")
@@ -126,9 +126,9 @@ func TestProductPickerI18n(t *testing.T) {
 	ctx := context.Background()
 
 	// Default locale is pt-BR: picker placeholder should be Portuguese.
-	status, body := get(t, ts, "/faturas/nova")
+	status, body := get(t, ts, "/invoices/new")
 	if status != 200 {
-		t.Fatalf("GET /faturas/nova (pt-BR): got %d want 200\nbody: %s", status, body)
+		t.Fatalf("GET /invoices/new (pt-BR): got %d want 200\nbody: %s", status, body)
 	}
 	if strings.Contains(body, "!label.select_product") {
 		t.Error("invoice form contains missing i18n marker !label.select_product (pt-BR)")
@@ -141,9 +141,9 @@ func TestProductPickerI18n(t *testing.T) {
 	if err := repos.Settings.Set(ctx, repo.SettingLocale, "en"); err != nil {
 		t.Fatalf("set locale en: %v", err)
 	}
-	status, body = get(t, ts, "/faturas/nova")
+	status, body = get(t, ts, "/invoices/new")
 	if status != 200 {
-		t.Fatalf("GET /faturas/nova (en): got %d want 200\nbody: %s", status, body)
+		t.Fatalf("GET /invoices/new (en): got %d want 200\nbody: %s", status, body)
 	}
 	if strings.Contains(body, "!label.select_product") {
 		t.Error("invoice form contains missing i18n marker !label.select_product (en)")
@@ -155,12 +155,7 @@ func TestProductPickerI18n(t *testing.T) {
 
 func TestInvoiceFormHasTotalsAndAddButton(t *testing.T) {
 	ts, _ := newTestEnv(t)
-	// Task 1 specifies GET /faturas/nova (pre-rename); Task 3 migrates to /invoices/new.
-	// Try new path first, fall back to Portuguese for TDD in Task 1.
 	status, body := get(t, ts, "/invoices/new")
-	if status != 200 {
-		status, body = get(t, ts, "/faturas/nova")
-	}
 	if status != 200 {
 		t.Fatalf("GET invoice form: got %d want 200\nbody: %s", status, body)
 	}
@@ -209,9 +204,6 @@ func TestInvoiceFormHasTotalsAndAddButton(t *testing.T) {
 func TestInvoiceFormSingleInitialRow(t *testing.T) {
 	ts, _ := newTestEnv(t)
 	status, body := get(t, ts, "/invoices/new")
-	if status != 200 {
-		status, body = get(t, ts, "/faturas/nova")
-	}
 	if status != 200 {
 		t.Fatalf("GET invoice form: got %d want 200", status)
 	}
@@ -274,10 +266,7 @@ func TestCreateInvoiceDynamicRows(t *testing.T) {
 			"item_qty_12":  {"3"},
 			"item_price_12": {"10,00"},
 		}
-		resp, body := postForm(t, ts, "/faturas/nova", form)
-		if resp.StatusCode == http.StatusNotFound {
-			resp, body = postForm(t, ts, "/invoices/new", form)
-		}
+		resp, body := postForm(t, ts, "/invoices/new", form)
 		if resp.StatusCode != http.StatusSeeOther {
 			t.Fatalf("sparse POST: got %d want 303\nbody: %s", resp.StatusCode, body)
 		}
@@ -334,10 +323,7 @@ func TestCreateInvoiceDynamicRows(t *testing.T) {
 			"item_price_2": {"20,00"},
 			// also ensure empty intermediate indices don't create items
 		}
-		resp, body := postForm(t, ts, "/faturas/nova", form)
-		if resp.StatusCode == http.StatusNotFound {
-			resp, body = postForm(t, ts, "/invoices/new", form)
-		}
+		resp, body := postForm(t, ts, "/invoices/new", form)
 		if resp.StatusCode != http.StatusSeeOther {
 			t.Fatalf("gap POST: got %d want 303\nbody: %s", resp.StatusCode, body)
 		}
@@ -373,10 +359,7 @@ func TestCreateInvoiceDynamicRows(t *testing.T) {
 			form.Set(fmt.Sprintf("item_qty_%d", i), "1")
 			form.Set(fmt.Sprintf("item_price_%d", i), "10,00")
 		}
-		resp, body := postForm(t, ts, "/faturas/nova", form)
-		if resp.StatusCode == http.StatusNotFound {
-			resp, body = postForm(t, ts, "/invoices/new", form)
-		}
+		resp, body := postForm(t, ts, "/invoices/new", form)
 		if resp.StatusCode != http.StatusSeeOther {
 			t.Fatalf("20 items POST: got %d want 303\nbody: %s", resp.StatusCode, body)
 		}
@@ -415,10 +398,7 @@ func TestCreateInvoiceDynamicRows(t *testing.T) {
 			form.Set(fmt.Sprintf("item_qty_%d", i), "1")
 			form.Set(fmt.Sprintf("item_price_%d", i), "10,00")
 		}
-		resp, body := postForm(t, ts, "/faturas/nova", form)
-		if resp.StatusCode == http.StatusNotFound {
-			resp, body = postForm(t, ts, "/invoices/new", form)
-		}
+		resp, body := postForm(t, ts, "/invoices/new", form)
 		if resp.StatusCode != http.StatusSeeOther {
 			t.Fatalf("21 items POST: got %d want 303 (21st should be ignored)\nbody: %s", resp.StatusCode, body)
 		}

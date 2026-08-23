@@ -1,7 +1,7 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "recurring.title"}}</h1>
-<a class="btn" href="/recorrentes/novo">{{T "recurring.new"}}</a>
+<a class="btn" href="/recurring/new">{{T "recurring.new"}}</a>
 </div>
 
 <div class="panel">
@@ -14,20 +14,20 @@
 {{range .Rows}}
 <tr>
 <td>{{.ClientName}}</td>
-<td><a href="/faturas/{{.TemplateID}}">#{{printf "%06d" .TemplateNumber}}</a></td>
+<td><a href="/invoices/{{.TemplateID}}">#{{printf "%06d" .TemplateNumber}}</a></td>
 <td>{{.FrequencyLabel}}</td>
 <td>{{dtbr .Next}}</td>
 <td>{{if .Last}}{{dtbr .Last}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td>{{.MethodLabel}}</td>
 		<td>{{if .Active}}{{T "recurring.active"}}{{else}}{{T "recurring.paused"}}{{end}}</td>
 		<td>
-		<form method="post" action="/recorrentes/{{.ID}}/alternar">
+		<form method="post" action="/recurring/{{.ID}}/toggle">
 		{{template "csrfField" .}}
 		<button type="submit" class="btn-secondary">{{if .Active}}{{T "recurring.disable"}}{{else}}{{T "recurring.enable"}}{{end}}</button>
 		</form>
 		</td>
 		<td>
-		<form method="post" action="/recorrentes/{{.ID}}/excluir">
+		<form method="post" action="/recurring/{{.ID}}/delete">
 		{{template "csrfField" .}}
 		<button type="submit" class="btn-danger">{{T "recurring.delete"}}</button>
 		</form>

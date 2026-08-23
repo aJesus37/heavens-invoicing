@@ -100,7 +100,7 @@ func TestDashboardRenders(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("got %d want 200", status)
 	}
-	for _, marker := range []string{"Dashboard", "Faturas pendentes", "Recorrentes nos próximos 7 dias", "/clientes"} {
+	for _, marker := range []string{"Dashboard", "Faturas pendentes", "Recorrentes nos próximos 7 dias", "/clients"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("dashboard missing marker %q", marker)
 		}
@@ -116,7 +116,7 @@ func TestClientCreateFlowEndToEnd(t *testing.T) {
 		"phone":   {"+5511999999999"},
 		"address": {"Rua das Flores, 123 - São Paulo/SP"},
 	}
-	resp, body := postForm(t, ts, "/clientes/novo", form)
+	resp, body := postForm(t, ts, "/clients/new", form)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("create: got %d want 303\nbody: %s", resp.StatusCode, body)
 	}
@@ -131,13 +131,13 @@ func TestClientCreateFlowEndToEnd(t *testing.T) {
 		}
 	}
 
-	status, body = get(t, ts, "/clientes")
+	status, body = get(t, ts, "/clients")
 	if status != http.StatusOK || !strings.Contains(body, "Acme Ltda") {
 		t.Fatalf("client list should show created client (status=%d)", status)
 	}
 
 	// Blank name must be rejected without creating anything.
-	resp2, _ := postForm(t, ts, "/clientes/novo", url.Values{"name": {" "}})
+	resp2, _ := postForm(t, ts, "/clients/new", url.Values{"name": {" "}})
 	if resp2.StatusCode != http.StatusBadRequest {
 		t.Fatalf("blank name: got %d want 400", resp2.StatusCode)
 	}
@@ -147,23 +147,23 @@ func TestClientUpdateFlow(t *testing.T) {
 	ts, repos := newTestEnv(t)
 
 	form := url.Values{"name": {"Beta"}}
-	resp, _ := postForm(t, ts, "/clientes/novo", form)
-	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clientes/")
+	resp, _ := postForm(t, ts, "/clients/new", form)
+	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clients/")
 
-	resp, body := postForm(t, ts, "/clientes/"+id, url.Values{
+	resp, body := postForm(t, ts, "/clients/"+id, url.Values{
 		"name":  {"Beta SA"},
 		"notes": {"atualizado"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("update: got %d want 303 (body: %s)", resp.StatusCode, body)
 	}
-	_, body = get(t, ts, "/clientes/"+id)
+	_, body = get(t, ts, "/clients/"+id)
 	if !strings.Contains(body, "Beta SA") || !strings.Contains(body, "atualizado") {
 		t.Fatal("update did not persist")
 	}
 
 	// Updates trim the name just like creation does.
-	respTrim, _ := postForm(t, ts, "/clientes/"+id, url.Values{"name": {"  Gamma  "}})
+	respTrim, _ := postForm(t, ts, "/clients/"+id, url.Values{"name": {"  Gamma  "}})
 	if respTrim.StatusCode != http.StatusSeeOther {
 		t.Fatalf("trim update: got %d want 303", respTrim.StatusCode)
 	}
@@ -178,7 +178,7 @@ func TestClientUpdateFlow(t *testing.T) {
 
 func TestClientDetailNotFound(t *testing.T) {
 	ts, _ := newTestEnv(t)
-	status, _ := get(t, ts, "/clientes/naoexiste")
+	status, _ := get(t, ts, "/clients/naoexiste")
 	if status != http.StatusNotFound {
 		t.Fatalf("got %d want 404", status)
 	}
@@ -188,7 +188,7 @@ func TestClientLanguageSelectFlow(t *testing.T) {
 	ts, repos := newTestEnv(t)
 
 	// The new-client form carries the language selector, Português first.
-	_, body := get(t, ts, "/clientes/novo")
+	_, body := get(t, ts, "/clients/new")
 	for _, marker := range []string{`<select id="language" name="language">`, `value="pt-BR"`, `value="en"`} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("new client form missing language select marker %q", marker)
@@ -198,14 +198,14 @@ func TestClientLanguageSelectFlow(t *testing.T) {
 		t.Error("Português should be preselected by default")
 	}
 
-	resp, _ := postForm(t, ts, "/clientes/novo", url.Values{
+	resp, _ := postForm(t, ts, "/clients/new", url.Values{
 		"name":     {"Bilíngue"},
 		"language": {"en"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("create with language: got %d want 303", resp.StatusCode)
 	}
-	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clientes/")
+	id := strings.TrimPrefix(resp.Header.Get("Location"), "/clients/")
 	got, err := repos.Clients.Get(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
@@ -215,13 +215,13 @@ func TestClientLanguageSelectFlow(t *testing.T) {
 	}
 
 	// The edit form preselects the stored language.
-	_, body = get(t, ts, "/clientes/"+id)
+	_, body = get(t, ts, "/clients/"+id)
 	if !strings.Contains(body, `value="en" selected`) {
 		t.Error("edit form should preselect English for an en client")
 	}
 
 	// Junk languages are rejected instead of persisted.
-	respBad, _ := postForm(t, ts, "/clientes/novo", url.Values{
+	respBad, _ := postForm(t, ts, "/clients/new", url.Values{
 		"name":     {"Ruim"},
 		"language": {"klingon"},
 	})
@@ -240,22 +240,22 @@ func TestInvoiceCancelButtonVisibility(t *testing.T) {
 
 	// Cancellable statuses (draft, sent) expose the cancel action.
 	for _, id := range []string{draftID, sentID} {
-		status, body := get(t, ts, "/faturas/"+id)
+		status, body := get(t, ts, "/invoices/"+id)
 		if status != http.StatusOK {
 			t.Fatalf("detail %s: got %d want 200", id, status)
 		}
-		if !strings.Contains(body, "/faturas/"+id+"/cancelar") {
+		if !strings.Contains(body, "/invoices/"+id+"/cancel") {
 			t.Errorf("invoice %s should show the cancel action", id)
 		}
 	}
 
 	// Paid and cancelled must hide it.
 	for _, id := range []string{paidID, cancelledID} {
-		status, body := get(t, ts, "/faturas/"+id)
+		status, body := get(t, ts, "/invoices/"+id)
 		if status != http.StatusOK {
 			t.Fatalf("detail %s: got %d want 200", id, status)
 		}
-		if strings.Contains(body, "/faturas/"+id+"/cancelar") {
+		if strings.Contains(body, "/invoices/"+id+"/cancel") {
 			t.Errorf("invoice %s must not show the cancel action", id)
 		}
 	}
@@ -289,11 +289,11 @@ func TestRecurringToggleControlPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	status, body := get(t, ts, "/recorrentes")
+	status, body := get(t, ts, "/recurring")
 	if status != http.StatusOK {
 		t.Fatalf("recorrentes: got %d want 200", status)
 	}
-	if !strings.Contains(body, "/recorrentes/"+sched.ID+"/alternar") {
+	if !strings.Contains(body, "/recurring/"+sched.ID+"/toggle") {
 		t.Error("recurring list should expose the pause/resume control")
 	}
 	if !strings.Contains(body, "Desativar") {

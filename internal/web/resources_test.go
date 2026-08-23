@@ -26,7 +26,7 @@ func seedClient(t *testing.T, repos *repo.Repos, name string) string {
 func TestProductCreateWithBRLDecimal(t *testing.T) {
 	ts, _ := newTestEnv(t)
 
-	resp, body := postForm(t, ts, "/produtos/novo", url.Values{
+	resp, body := postForm(t, ts, "/products/new", url.Values{
 		"name":        {"Consultoria"},
 		"description": {"Hora de consultoria técnica"},
 		"unit_price":  {"1.234,56"},
@@ -35,7 +35,7 @@ func TestProductCreateWithBRLDecimal(t *testing.T) {
 		t.Fatalf("create product: got %d want 303\n%s", resp.StatusCode, body)
 	}
 
-	status, body := get(t, ts, "/produtos")
+	status, body := get(t, ts, "/products")
 	if status != http.StatusOK {
 		t.Fatalf("list products: got %d want 200", status)
 	}
@@ -46,7 +46,7 @@ func TestProductCreateWithBRLDecimal(t *testing.T) {
 	}
 
 	// Invalid price must re-render with an error banner.
-	resp2, body2 := postForm(t, ts, "/produtos/novo", url.Values{
+	resp2, body2 := postForm(t, ts, "/products/new", url.Values{
 		"name":       {"Ruim"},
 		"unit_price": {"abc"},
 	})
@@ -58,7 +58,7 @@ func TestProductCreateWithBRLDecimal(t *testing.T) {
 func TestProductEditFlow(t *testing.T) {
 	ts, repos := newTestEnv(t)
 
-	if resp, _ := postForm(t, ts, "/produtos/novo", url.Values{"name": {"Licença"}, "unit_price": {"100,00"}}); resp.StatusCode != http.StatusSeeOther {
+	if resp, _ := postForm(t, ts, "/products/new", url.Values{"name": {"Licença"}, "unit_price": {"100,00"}}); resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("setup create failed: got %d want 303", resp.StatusCode)
 	}
 
@@ -68,12 +68,12 @@ func TestProductEditFlow(t *testing.T) {
 	}
 	id := list[0].ID
 
-	status, body := get(t, ts, "/produtos/"+id+"/editar")
+	status, body := get(t, ts, "/products/"+id+"/edit")
 	if status != http.StatusOK || !strings.Contains(body, "Editar produto") || !strings.Contains(body, `value="100,00"`) {
 		t.Fatalf("edit form missing prefilled price (status=%d)", status)
 	}
 
-	respUp, _ := postForm(t, ts, "/produtos/"+id+"/editar", url.Values{
+	respUp, _ := postForm(t, ts, "/products/"+id+"/edit", url.Values{
 		"name":       {"Licença Anual"},
 		"unit_price": {"1200"},
 		"active":     {"on"},
@@ -81,7 +81,7 @@ func TestProductEditFlow(t *testing.T) {
 	if respUp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("update: got %d want 303", respUp.StatusCode)
 	}
-	_, body = get(t, ts, "/produtos")
+	_, body = get(t, ts, "/products")
 	if !strings.Contains(body, "Licença Anual") || !strings.Contains(body, "R$ 1.200,00") {
 		t.Fatal("update did not persist")
 	}
@@ -103,7 +103,7 @@ func TestInvoiceCreateFlowEndToEnd(t *testing.T) {
 		"item_qty_1":   {"1"},
 		"item_price_1": {"99,9"},
 	}
-	resp, body := postForm(t, ts, "/faturas/nova", form)
+	resp, body := postForm(t, ts, "/invoices/new", form)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("create invoice: got %d want 303\n%s", resp.StatusCode, body)
 	}
@@ -134,17 +134,17 @@ func TestInvoiceCreateFlowEndToEnd(t *testing.T) {
 		"item_desc_0":  {"X"},
 		"item_price_0": {"10,00"},
 	}
-	respBad, _ := postForm(t, ts, "/faturas/nova", bad)
+	respBad, _ := postForm(t, ts, "/invoices/new", bad)
 	if respBad.StatusCode != http.StatusBadRequest {
 		t.Fatalf("bad dates: got %d want 400", respBad.StatusCode)
 	}
 
 	// Status tab filter shows the draft invoice; paid tab stays empty.
-	_, allDrafts := get(t, ts, "/faturas?status=draft")
+	_, allDrafts := get(t, ts, "/invoices?status=draft")
 	if !strings.Contains(allDrafts, "#000001") {
 		t.Error("draft filter should contain the new invoice")
 	}
-	_, allPaid := get(t, ts, "/faturas?status=paid")
+	_, allPaid := get(t, ts, "/invoices?status=paid")
 	if strings.Contains(allPaid, "#000001") {
 		t.Error("paid filter should not contain a draft invoice")
 	}
@@ -169,14 +169,14 @@ func TestInvoiceMarkPaidHidesActions(t *testing.T) {
 	}
 
 	// A draft offers both actions.
-	_, body := get(t, ts, "/faturas/"+inv.ID)
+	_, body := get(t, ts, "/invoices/"+inv.ID)
 	for _, marker := range []string{"Marcar paga", "Enviar fatura"} {
 		if !strings.Contains(body, marker) {
 			t.Errorf("draft detail missing action %q", marker)
 		}
 	}
 
-	resp, _ := postForm(t, ts, "/faturas/"+inv.ID+"/marcar-paga", url.Values{})
+	resp, _ := postForm(t, ts, "/invoices/"+inv.ID+"/mark-paid", url.Values{})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("mark paid: got %d want 303", resp.StatusCode)
 	}
@@ -186,7 +186,7 @@ func TestInvoiceMarkPaidHidesActions(t *testing.T) {
 	}
 
 	// Paid invoices must not offer either action.
-	_, body = get(t, ts, "/faturas/"+inv.ID)
+	_, body = get(t, ts, "/invoices/"+inv.ID)
 	if strings.Contains(body, "Marcar paga") || strings.Contains(body, "Enviar fatura") {
 		t.Error("paid invoice still offers mark-paid/send actions")
 	}
@@ -196,7 +196,7 @@ func TestInvoiceMarkPaidHidesActions(t *testing.T) {
 
 	// Resending a paid invoice is rejected with a clear reason instead of
 	// downgrading it to "sent".
-	respSend, bodySend := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"email"}})
+	respSend, bodySend := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"email"}})
 	if respSend.StatusCode != http.StatusConflict {
 		t.Fatalf("send paid invoice: got %d want 409", respSend.StatusCode)
 	}
@@ -227,7 +227,7 @@ func TestInvoiceCancelledKeepsSendOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, body := get(t, ts, "/faturas/"+inv.ID)
+	_, body := get(t, ts, "/invoices/"+inv.ID)
 	if strings.Contains(body, "Marcar paga") {
 		t.Error("cancelled invoice still offers mark-paid")
 	}
@@ -264,7 +264,7 @@ func TestInvoiceSendFragmentOnDraft(t *testing.T) {
 
 	// Send endpoint returns an HTML fragment; with every channel unconfigured
 	// the router reports per-channel failures rather than crashing.
-	respSend, bodySend := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"all"}})
+	respSend, bodySend := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"all"}})
 	if respSend.StatusCode != http.StatusOK {
 		t.Fatalf("send fragment: got %d want 200", respSend.StatusCode)
 	}
@@ -275,7 +275,7 @@ func TestInvoiceSendFragmentOnDraft(t *testing.T) {
 	}
 
 	// Unknown method is rejected.
-	respBadMethod, _ := postForm(t, ts, "/faturas/"+inv.ID+"/enviar", url.Values{"method": {"fax"}})
+	respBadMethod, _ := postForm(t, ts, "/invoices/"+inv.ID+"/send", url.Values{"method": {"fax"}})
 	if respBadMethod.StatusCode != http.StatusBadRequest {
 		t.Fatalf("invalid method: got %d want 400", respBadMethod.StatusCode)
 	}
@@ -304,12 +304,12 @@ func TestRecurringCreateFlow(t *testing.T) {
 		"delivery_method":     {"email"},
 		"next_send_date":      {"2026-08-25"},
 	}
-	resp, body := postForm(t, ts, "/recorrentes/novo", form)
+	resp, body := postForm(t, ts, "/recurring/new", form)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("create recurring: got %d want 303\n%s", resp.StatusCode, body)
 	}
 
-	status, listBody := get(t, ts, "/recorrentes")
+	status, listBody := get(t, ts, "/recurring")
 	if status != http.StatusOK {
 		t.Fatalf("list: got %d want 200", status)
 	}
@@ -325,7 +325,7 @@ func TestRecurringCreateFlow(t *testing.T) {
 	}
 
 	// Delete through the page keeps the UI honest.
-	delResp, _ := postForm(t, ts, "/recorrentes/"+schedules[0].ID+"/excluir", url.Values{})
+	delResp, _ := postForm(t, ts, "/recurring/"+schedules[0].ID+"/delete", url.Values{})
 	if delResp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("delete: got %d want 303", delResp.StatusCode)
 	}

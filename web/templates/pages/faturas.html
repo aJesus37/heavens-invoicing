@@ -1,12 +1,12 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "invoices.title"}}</h1>
-<a class="btn" href="/faturas/nova">{{T "invoices.new_title"}}</a>
+<a class="btn" href="/invoices/new">{{T "invoices.new_title"}}</a>
 </div>
 
 <div class="tabs">
 {{range .Filters}}
-<a href="{{if .Key}}/faturas?status={{.Key}}{{else}}/faturas{{end}}" {{if .Active}}class="active"{{end}}>{{.Label}}</a>
+<a href="{{if .Key}}/invoices?status={{.Key}}{{else}}/invoices{{end}}" {{if .Active}}class="active"{{end}}>{{.Label}}</a>
 {{end}}
 </div>
 
@@ -19,13 +19,13 @@
 	{{if .Rows}}
 	{{range .Rows}}
 	<tr>
-		<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+		<td><a href="/invoices/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
 		<td>{{.ClientName}}</td>
 		<td>{{dtbr .Issue}}</td>
 		<td>{{dtbr .Due}}</td>
 		<td class="num">{{brl .Total}}</td>
 		<td>{{template "statusBadge" .}}</td>
-		<td>{{if .CanCancel}}<form method="post" action="/faturas/{{.ID}}/cancelar" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
+		<td>{{if .CanCancel}}<form method="post" action="/invoices/{{.ID}}/cancel" onsubmit="return confirm('{{T "invoices.cancel_confirm"}}');">
 		{{template "csrfField" .}}
 		<button type="submit" class="btn-danger">{{T "invoices.cancel"}}</button>
 		</form>{{end}}</td>

@@ -4,7 +4,7 @@
 {{if .Saved}}<div class="ok-banner">{{T "settings.saved"}}</div>{{end}}
 {{if .Error}}<div class="error-banner">{{.Error}}</div>{{end}}
 
-<form method="post" action="/configuracoes" class="stack">
+<form method="post" action="/settings" class="stack">
 {{template "csrfField" .}}
 <div class="panel">
 <h2 style="margin-top:0;">{{T "group.language"}}</h2>
@@ -55,7 +55,7 @@
 <div class="panel">
 <h2 style="margin-top:0;">{{T "group.whatsapp"}}</h2>
 <div id="wa-status"
-     hx-get="/configuracoes/whatsapp/status"
+     hx-get="/settings/whatsapp/status"
      hx-trigger="load, every 5s"
      hx-swap="innerHTML">
 <p class="muted">{{T "settings.wa_loading"}}</p>

@@ -1,7 +1,7 @@
 {{define "content"}}
 <div class="actions" style="justify-content: space-between; margin-bottom: 1rem;">
 <h1 style="margin:0;">{{T "clients.title"}}</h1>
-<a class="btn" href="/clientes/novo">{{T "clients.new"}}</a>
+<a class="btn" href="/clients/new">{{T "clients.new"}}</a>
 </div>
 
 <div class="panel">
@@ -13,7 +13,7 @@
 {{if .}}
 {{range .}}
 <tr>
-<td><a href="/clientes/{{.ID}}">{{.Name}}</a></td>
+<td><a href="/clients/{{.ID}}">{{.Name}}</a></td>
 <td>{{with .Email}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td>{{with .Phone}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
 <td>{{with .Address}}{{.}}{{else}}<span class="muted">—</span>{{end}}</td>

@@ -21,7 +21,7 @@
 {{if .Invoices}}
 {{range .Invoices}}
 <tr>
-<td><a href="/faturas/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
+<td><a href="/invoices/{{.ID}}">#{{printf "%06d" .Number}}</a></td>
 <td>{{dtbr .Issue}}</td>
 <td>{{dtbr .Due}}</td>
 <td class="num">{{brl .Total}}</td>
@@ -37,7 +37,7 @@
 
 <h2>{{T "clients.detail.edit"}}</h2>
 <div class="panel">
-<form method="post" action="/clientes/{{.Client.ID}}" class="stack">
+<form method="post" action="/clients/{{.Client.ID}}" class="stack">
 {{template "csrfField" .}}
 <div class="grid">
 <div class="wide">
@@ -78,7 +78,7 @@
 </div>
 <div class="actions">
 <button type="submit">{{T "button.save_changes"}}</button>
-<a class="btn btn-secondary" href="/clientes/{{.Client.ID}}">{{T "clients.detail.revert"}}</a>
+<a class="btn btn-secondary" href="/clients/{{.Client.ID}}">{{T "clients.detail.revert"}}</a>
 </div>
 </form>
 </div>
