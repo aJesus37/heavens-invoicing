@@ -11,6 +11,18 @@
 	--warn: #b7791f;
 	--bad: #c0392b;
 }
+html[data-theme="dark"] {
+	--bg: #0d1117;
+	--panel: #161b22;
+	--text: #e6edf3;
+	--muted: #8b949e;
+	--line: #30363d;
+	--accent: #58a6ff;
+	--accent-dark: #1f6feb;
+	--ok: #238636;
+	--warn: #d29922;
+	--bad: #f85149;
+}
 
 * { box-sizing: border-box; }
 
@@ -49,6 +61,20 @@ main {
 	font-weight: 500;
 }
 .topbar a:hover { background: var(--bg); }
+#theme-toggle {
+	background: transparent;
+	border: 1px solid var(--line);
+	color: var(--text);
+	padding: 0.25rem 0.6rem;
+	border-radius: 999px;
+	font-size: 0.9rem;
+	line-height: 1;
+}
+#theme-toggle:hover { background: var(--bg); }
+html[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+html[data-theme="dark"] .panel { background: var(--panel); border-color: var(--line); }
+html[data-theme="dark"] tbody tr:hover { background: #21262d; }
+html[data-theme="dark"] input[type="text"], html[data-theme="dark"] input[type="email"], html[data-theme="dark"] input[type="password"], html[data-theme="dark"] input[type="date"], html[data-theme="dark"] input[type="number"], html[data-theme="dark"] select, html[data-theme="dark"] textarea { background: var(--panel); color: var(--text); border-color: var(--line); }
 
 h1 { font-size: 1.35rem; margin: 0 0 1rem; }
 h2 { font-size: 1.05rem; margin: 1.75rem 0 0.5rem; }

@@ -27,6 +27,7 @@ document.addEventListener('htmx:config-request', function (evt) {
 <a href="/invoices">{{T "nav.invoices"}}</a>
 <a href="/recurring">{{T "nav.recurring"}}</a>
 <a href="/settings">{{T "nav.settings"}}</a>
+<button id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">🌙</button>
 {{if .Authed}}
 <form method="post" action="/logout" class="nav-logout">
 {{template "csrfField" .}}
@@ -35,6 +36,25 @@ document.addEventListener('htmx:config-request', function (evt) {
 {{end}}
 </nav>
 </header>
+<script>
+(function(){
+  const key="theme";
+  const btn=document.getElementById("theme-toggle");
+  function apply(t){
+    document.documentElement.setAttribute("data-theme",t);
+    if(btn) btn.textContent=t==="dark"?"☀️":"🌙";
+  }
+  let saved=null;
+  try{ saved=localStorage.getItem(key); }catch(e){}
+  let theme=saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  apply(theme);
+  if(btn) btn.addEventListener("click",function(){
+    theme=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+    try{ localStorage.setItem(key,theme); }catch(e){}
+    apply(theme);
+  });
+})();
+</script>
 <main>
 {{block "content" .Data}}<p>{{T "dash.empty_recent"}}</p>{{end}}
 </main>

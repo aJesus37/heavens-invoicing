@@ -130,6 +130,9 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	var pendingTotal int64
 	var overdueCount int
 	for _, row := range pendingRows {
+		if row.Status == "cancelled" {
+			continue
+		}
 		pendingTotal += row.Total
 		if row.Status == "overdue" {
 			overdueCount++
@@ -137,6 +140,9 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	var recentTotal int64
 	for _, row := range recentRows {
+		if row.Status == "cancelled" {
+			continue
+		}
 		recentTotal += row.Total
 	}
 

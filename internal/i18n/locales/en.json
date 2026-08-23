@@ -85,6 +85,7 @@
   "dash.empty_upcoming": "No recurring sends in the next 7 days.",
   "dash.pending": "Pending invoices",
   "dash.pending_total": "Total pending: %s",
+  "dash.recent_total": "Total recent: %s",
   "dash.overdue_badge": "%d overdue",
   "dash.view_all_invoices": "View all invoices",
   "dash.view_clients": "View clients",

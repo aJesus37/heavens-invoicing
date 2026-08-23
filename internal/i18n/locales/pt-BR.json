@@ -85,6 +85,7 @@
   "dash.empty_upcoming": "Nenhum envio recorrente nos próximos 7 dias.",
   "dash.pending": "Faturas pendentes",
   "dash.pending_total": "Total pendente: %s",
+  "dash.recent_total": "Total recentes: %s",
   "dash.overdue_badge": "%d vencida(s)",
   "dash.view_all_invoices": "Ver todas as faturas",
   "dash.view_clients": "Ver clientes",
