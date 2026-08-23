@@ -26,7 +26,8 @@ type recurringRowData struct {
 }
 
 type recorrentesData struct {
-	Rows []recurringRowData
+	Rows    []recurringRowData
+	Created bool
 }
 
 func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
@@ -37,20 +38,40 @@ func (h *Handlers) listRecurring(w http.ResponseWriter, r *http.Request) {
 		writeRepoErr(w, lang, err)
 		return
 	}
+	clients, err := h.repos.Clients.List(ctx)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	clientNames := make(map[string]string, len(clients))
+	for _, c := range clients {
+		clientNames[c.ID] = c.Name
+	}
+	invoices, err := h.repos.Invoices.List(ctx)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	invoiceNumbers := make(map[string]int64, len(invoices))
+	for _, inv := range invoices {
+		invoiceNumbers[inv.ID] = inv.Number
+	}
 	rows := make([]recurringRowData, 0, len(schedules))
 	for _, s := range schedules {
+		name := clientNames[s.ClientID]
+		if name == "" {
+			name = s.ClientID
+		}
 		row := recurringRowData{
 			ID:             s.ID,
-			ClientName:     h.clientName(ctx, s.ClientID),
+			ClientName:     name,
 			TemplateID:     s.InvoiceTemplateID,
+			TemplateNumber: invoiceNumbers[s.InvoiceTemplateID],
 			FrequencyLabel: i18n.T(lang, "freq."+s.Frequency),
 			MethodLabel:    i18n.T(lang, "method."+s.DeliveryMethod),
 			Next:           s.NextSendDate,
 			Last:           s.LastSentDate,
 			Active:         s.Active,
-		}
-		if tpl, err := h.repos.Invoices.Get(ctx, s.InvoiceTemplateID); err == nil {
-			row.TemplateNumber = tpl.Number
 		}
 		rows = append(rows, row)
 	}
@@ -104,10 +125,18 @@ func (h *Handlers) recurringFormBase(r *http.Request, clientFilter string) (*rec
 		return nil, err
 	}
 
+	clientNames := make(map[string]string, len(clients))
+	for _, c := range clients {
+		clientNames[c.ID] = c.Name
+	}
 	tplOpts := make([]selectOption, 0, len(drafts)+1)
 	tplOpts = append(tplOpts, selectOption{Value: "", Label: i18n.T(lang, "label.select")})
 	for _, inv := range drafts {
-		label := fmt.Sprintf("#%06d · %s · %s", inv.Number, h.clientName(ctx, inv.ClientID), pdf.FormatBRL(inv.Total))
+		name := clientNames[inv.ClientID]
+		if name == "" {
+			name = inv.ClientID
+		}
+		label := fmt.Sprintf("#%06d · %s · %s", inv.Number, name, pdf.FormatBRL(inv.Total))
 		tplOpts = append(tplOpts, selectOption{Value: inv.ID, Label: label})
 	}
 

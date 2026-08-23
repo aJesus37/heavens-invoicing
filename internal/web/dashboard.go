@@ -106,21 +106,39 @@ func (h *Handlers) dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	horizon := truncDay(time.Now()).AddDate(0, 0, 8)
+	clients, err := h.repos.Clients.List(ctx)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	clientNames := make(map[string]string, len(clients))
+	for _, c := range clients {
+		clientNames[c.ID] = c.Name
+	}
+	invoices, err := h.repos.Invoices.List(ctx)
+	if err != nil {
+		writeRepoErr(w, lang, err)
+		return
+	}
+	invoiceNumbers := make(map[string]int64, len(invoices))
+	for _, inv := range invoices {
+		invoiceNumbers[inv.ID] = inv.Number
+	}
 	upcoming := make([]recurringRow, 0, len(schedules))
 	for _, s := range schedules {
 		next := truncDay(s.NextSendDate)
 		if !next.Before(horizon) {
 			continue
 		}
-		tplNumber := int64(0)
-		if tpl, err := h.repos.Invoices.Get(ctx, s.InvoiceTemplateID); err == nil {
-			tplNumber = tpl.Number
+		name := clientNames[s.ClientID]
+		if name == "" {
+			name = s.ClientID
 		}
 		upcoming = append(upcoming, recurringRow{
 			ID:             s.ID,
-			ClientName:     h.clientName(ctx, s.ClientID),
+			ClientName:     name,
 			TemplateID:     s.InvoiceTemplateID,
-			TemplateNumber: tplNumber,
+			TemplateNumber: invoiceNumbers[s.InvoiceTemplateID],
 			FrequencyLabel: i18n.T(lang, "freq."+s.Frequency),
 			MethodLabel:    i18n.T(lang, "method."+s.DeliveryMethod),
 			Next:           s.NextSendDate,
