@@ -3,7 +3,7 @@ package deliver
 import (
 	"context"
 
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 // Deliverer sends invoice documents and payment reminders to a client

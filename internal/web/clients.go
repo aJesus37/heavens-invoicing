@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // clientName resolves a client id for display; failures degrade to the raw

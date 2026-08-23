@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title>Heaven's Invoicing logo</title>
+  <!-- Halo -->
+  <ellipse cx="60" cy="22" rx="22" ry="7" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+  <!-- Document -->
+  <rect x="30" y="34" width="60" height="72" rx="8" fill="white" stroke="#0f172a" stroke-width="2.5"/>
+  <!-- Top accent bar -->
+  <rect x="30" y="34" width="60" height="14" rx="8" fill="#0f172a"/>
+  <rect x="30" y="42" width="60" height="6" fill="#0f172a"/>
+  <!-- Lines -->
+  <rect x="42" y="60" width="36" height="3" rx="1.5" fill="#e2e8f0"/>
+  <rect x="42" y="68" width="28" height="3" rx="1.5" fill="#e2e8f0"/>
+  <rect x="42" y="76" width="34" height="3" rx="1.5" fill="#e2e8f0"/>
+  <!-- PIX / R$ accent -->
+  <circle cx="60" cy="92" r="10" fill="#38bdf8"/>
+  <text x="60" y="96" text-anchor="middle" font-family="system-ui, sans-serif" font-size="9" font-weight="700" fill="white">R$</text>
+</svg>

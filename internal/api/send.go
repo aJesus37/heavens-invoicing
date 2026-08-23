@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
 )
 
 type sendRequest struct {

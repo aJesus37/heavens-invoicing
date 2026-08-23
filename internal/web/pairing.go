@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/whatsapp"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
 )
 
 // reconnectDelay gives the post-PairSuccess server-side disconnect time to

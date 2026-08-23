@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/repo"
-	"github.com/jesus/invoice-app/internal/telegram"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/telegram"
 )
 
 func TestNextBackoff(t *testing.T) {

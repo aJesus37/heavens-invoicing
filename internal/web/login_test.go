@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/auth"
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
-	"github.com/jesus/invoice-app/internal/server"
-	"github.com/jesus/invoice-app/internal/web"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/server"
+	"github.com/ajesus37/heavens-invoicing/internal/web"
 )
 
 // newAuthEnv boots the full stack WITH the auth gate, mirroring production

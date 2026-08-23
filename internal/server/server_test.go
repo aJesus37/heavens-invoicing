@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/server"
+	"github.com/ajesus37/heavens-invoicing/internal/server"
 )
 
 func TestHealthEndpoint(t *testing.T) {

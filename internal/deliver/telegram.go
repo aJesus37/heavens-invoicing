@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 type TelegramAPI interface {

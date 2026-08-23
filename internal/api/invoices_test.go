@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // Wire-format shapes used by assertions: dates are YYYY-MM-DD strings on

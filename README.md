@@ -1,124 +1,137 @@
-# invoice-app
+<p align="center">
+  <img src="web/static/logo.svg" width="120" alt="Heaven's Invoicing logo">
+</p>
 
-A minimal, self-hosted invoicing app for a solo user (Brazil-friendly). Generates
-monthly PDF invoices and sends them as **PIX payment reminders** over Email,
-Telegram, and WhatsApp. No payment processing — clients pay via PIX manually and
-you mark invoices paid.
+<h1 align="center">Heaven's Invoicing</h1>
+
+<p align="center">
+  Minimal, self-hosted invoicing for solo/self-hosters — Brazil-friendly PIX.
+  <br>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go" alt="Go 1.26">
+</p>
+
+Self-hosted invoicing for solo/self-hosters. Create clients, products and monthly invoices, generate PDFs and send **PIX payment reminders** via Email, Telegram and WhatsApp. Clients pay via PIX manually — you mark invoices as paid.
 
 ## Features
 
-- Server-rendered web UI + JSON API (same data, no extra services)
-- Invoices, clients, products, and recurring monthly schedules
-- **i18n**: UI in `en` / `pt-BR`; per-client language for delivered messages and PDFs
-- Delivery channels: **Email (SMTP)**, **Telegram (Bot API)**, **WhatsApp (whatsmeow)**
-- **Auth**: first-run sets an admin password at `/login` (bcrypt hash, session cookie)
-- **Recurring pause**: toggle a schedule on/off without deleting it
-- **Invoice cancel**: mark an invoice cancelled (kept for history)
-- **Admin Telegram bot**: `/paid <number>`, `/status`, `/upcoming`, `/clients`, plus
-  delivery and payment notifications
-- Single SQLite file (WAL mode), zero external services
+- **Web UI + JSON API** — server-rendered `html/template` + `htmx`, same SQLite data
+- **Invoices, clients, products, recurring** — monthly schedules that clone a draft template; pause/resume without deleting
+- **Product picker** — pick products per invoice line, auto-fills description/price, live per-row and grand totals, dynamic rows
+- **i18n** — UI `en` / `pt-BR`; per-client language for PDFs and messages
+- **Delivery** — **Email (SMTP)**, **Telegram Bot API**, **WhatsApp (whatsmeow)** with separate copyable PIX message (`Chave PIX:` + raw key)
+- **Auth** — first run at `/login` sets admin password (bcrypt, `HttpOnly` + `SameSite=Lax` session)
+- **Telegram bot** — `/paid <number>`, `/status`, `/upcoming`, `/clients` + hot-reload on Settings save
+- **PDF** — pure-Go, description wraps (no truncation), `R$` formatting
+- **SQLite** (WAL, single file), zero external services
 
-## Quick start (local dev)
+## Quick start — production (recommended)
+
+Prerequisites: `docker` + `docker compose`.
+
+```sh
+# 1. Clone
+git clone https://github.com/ajesus37/heavens-invoicing
+cd heavens-invoicing
+
+# 2. Run with the published image (GHCR) — no local build
+docker compose up -d
+
+# — or — build locally
+docker compose up -d --build
+
+# 3. Open
+open http://localhost:8010
+```
+
+First visit shows **Set admin password** (no env var). After that, all routes require a session.
+
+Data persists in the named volume `invoice-app-data` (`/data/data/app.db` inside the container).
+
+### Updating
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+### Backup
+
+```sh
+docker run --rm -v invoice-app-data:/data -v "$PWD/backup":/backup alpine \
+  cp -a /data /backup/heavens-invoicing-$(date +%F)
+```
+
+## Quick start — local dev
 
 Prerequisites: **Go 1.26**.
 
 ```sh
-# Run directly (serves on http://localhost:8080 by default)
-task run
-# or:
+task run        # http://localhost:8080
+# or
 go run .
 
-# Run the test suite
-task test
+task test       # go test ./...
+task test-race  # -race
+task vet
 ```
 
-Open <http://localhost:8080>. On first run there is no admin password, so
-`/login` shows a **set admin password** form. After setting it, all routes (web
-and `/api`) require a session.
+## Configuration — all via Settings UI
 
-## Configuring delivery channels
+No env files. Open **Settings** (`/settings`):
 
-All configuration is done in the web UI at **Settings** (`/configuracoes`) — no
-env vars or config files needed:
-
-- **Email (SMTP)**: host, port, user, password, "from" address.
-- **Telegram**: bot token + your admin chat id. Once saved, the admin bot
-  starts responding in that chat.
-- **WhatsApp**: click "connect" on the Settings page to show a **pairing QR
-  code** (`/configuracoes/whatsapp/qr.png`); scan it with WhatsApp to link the
-  device. The session is stored on disk under the data directory.
-
-Default PIX key and default invoice notes are also set in Settings. Per-client
-language and PIX key live on the client record.
-
-## Production deploy (docker compose)
-
-The app is built as a single static binary (no CGO) and runs on `scratch`.
-It stores its SQLite DB at `./data` relative to its working directory. The
-container's working directory is `/data` and the `invoice-app-data` volume is
-mounted there, so the live database lives at `/data/data/app.db`.
-
-```sh
-# Build and start in the background
-task docker:build
-task docker:up
-# or directly:
-docker compose up -d --build
-```
-
-The container listens on `PORT` (default `8010`) and is published on the host as
-`${PORT:-8010}:8010`. Data lives in the `invoice-app-data` volume mounted at
-`/data` (database file: `/data/data/app.db`).
-
-### Backup
-
-The entire state is the SQLite database file (plus the WhatsApp session) under
-`/data/data`. Back it up by copying the volume, e.g.:
-
-```sh
-docker compose down
-docker run --rm -v invoice-app-data:/data -v "$PWD/backup":/backup alpine \
-  cp -a /data /backup/invoice-app-$(date +%F)
-docker compose up -d
-```
-
-## Environment variables
-
-| Variable  | Meaning | Default |
-|-----------|---------|---------|
-| `PORT`    | TCP port the app listens on (host:port inside container) | `8080` |
-| `DATA_DIR`| **Reserved for future use.** The app does not currently read this; data is stored at `./data` relative to the working directory. In the container the working directory is `/data`, so `./data` resolves to `/data/data` (the volume mount). | `/data` |
-
-No other environment variables are read by the app. SMTP, Telegram, WhatsApp,
-PIX, locale, and sender info are all stored via the Settings UI.
-
-## Dev workflow
-
-```sh
-task --list      # show all tasks
-task build       # go build -> ./bin/invoice-app
-task test        # go test ./...
-task test-race   # go test -race ./...
-task vet         # go vet ./...
-task clean       # remove ./bin
-```
-
-`go build ./...` and `go vet ./...` must stay green.
+- **Business** — name/address/PIX shown in PDF header
+- **Payment** — default PIX key (per-invoice override, per-client PIX)
+- **SMTP** — host/port/user/pass/from
+- **Telegram** — bot token + admin chat ID (see help panel in Settings for BotFather/getUpdates steps, hot-reloads on Save)
+- **WhatsApp** — **Settings → WhatsApp → Generate QR** → scan in WhatsApp Linked Devices; session persists on disk
+- **Language** — `en` / `pt-BR` (admin UI); per-client language controls their PDFs/messages
 
 ## Architecture
 
-Single Go module (`github.com/jesus/invoice-app`). Key packages under `internal/`:
+```
+github.com/ajesus37/heavens-invoicing
+├── cmd/            (main.go — wire via wire.go)
+├── internal/
+│   ├── server      — net/http mux (/api, /, gate, /healthz)
+│   ├── api         — JSON API /api/*
+│   ├── web         — html/template + auth + pairing
+│   ├── model/repo  — domain + SQLite
+│   ├── db          — open + migrations
+│   ├── schedule    — recurring + overdue
+│   ├── deliver     — router + Deliverer
+│   ├── telegram/whatsapp/email — channels
+│   ├── pdf         — fpdf
+│   ├── i18n        — en/pt-BR
+│   └── auth        — password/sessions
+└── web/            — templates + static (css, logo.svg)
+```
 
-- `server` — assembles the `net/http` mux (`/api`, `/`, auth gate, `/healthz`)
-- `api` — JSON API under `/api`
-- `web` — `html/template` UI + auth/session handling
-- `model` / `repo` — domain types and SQLite persistence
-- `db` — SQLite connection + embedded migrations
-- `schedule` — background daily scheduler (recurring + overdue reminders)
-- `deliver` — delivery router and the Deliverer interface
-- `email` / `telegram` / `whatsapp` — channel implementations
-- `pdf` — pure-Go PDF generation
-- `i18n` — `en` / `pt-BR` catalogs and resolution
-- `auth` — admin password + session management
+`GET /healthz` → `ok` for probes.
 
-The web UI exposes `/healthz` (returns `ok`) for external health checks.
+## Environment variables
+
+| Variable | Meaning | Default |
+|----------|---------|---------|
+| `PORT` | TCP port inside container | `8080` (compose maps `8010:8010`) |
+
+All other config is via Settings UI.
+
+## Development
+
+```sh
+task --list
+task build      # → ./bin/invoice-app
+task clean
+```
+
+`go vet` and `go test -race` must stay green.
+
+---
+
+### AI disclosure
+
+This application was built **heavily with AI assistance**. A human was in the loop for QA, manual browser testing, and final review of security and data-integrity paths. See commit history for the iterative, test-driven development.
+
+---
+
+MIT © 2026 aJesus37 / Heaven Labs — see [LICENSE](LICENSE).

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/auth"
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
-	"github.com/jesus/invoice-app/internal/web"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/web"
 )
 
 // seedInvoice creates a client and an invoice with the given status,

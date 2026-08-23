@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
 )
 
 // clientLang resolves the language for texts addressed to the client,

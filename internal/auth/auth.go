@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 
 	"golang.org/x/crypto/bcrypt"
 )

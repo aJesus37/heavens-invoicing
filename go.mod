@@ -1,4 +1,4 @@
-module github.com/jesus/invoice-app
+module github.com/ajesus37/heavens-invoicing
 
 go 1.26.0
 

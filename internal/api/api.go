@@ -7,9 +7,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 const maxBodyBytes = 1 << 20 // 1 MiB

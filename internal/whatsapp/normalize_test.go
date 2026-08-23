@@ -3,7 +3,7 @@ package whatsapp_test
 import (
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/whatsapp"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
 )
 
 func TestNormalizePhone(t *testing.T) {

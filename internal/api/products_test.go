@@ -3,7 +3,7 @@ package api_test
 import (
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 func TestProductsCRUDLifecycle(t *testing.T) {

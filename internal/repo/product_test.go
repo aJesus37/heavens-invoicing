@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 func TestProductCRUD(t *testing.T) {

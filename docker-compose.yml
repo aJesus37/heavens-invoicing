@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: invoice-app:local
+    image: ghcr.io/ajesus37/heavens-invoicing:latest
     container_name: invoice-app
     ports:
       - "${PORT:-8010}:8010"

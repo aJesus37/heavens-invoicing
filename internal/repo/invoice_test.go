@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 func seedClient(t *testing.T, r *repo.Repos) *model.Client {

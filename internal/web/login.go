@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/auth"
-	"github.com/jesus/invoice-app/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
 )
 
 // loginData feeds the login/setup page. Error is pre-localized; CSRFToken

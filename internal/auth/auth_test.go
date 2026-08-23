@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/auth"
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // newManager boots a real Manager over a throwaway database and returns it

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
 )
 
 // authMaxFailures mirrors the exported policy constant.

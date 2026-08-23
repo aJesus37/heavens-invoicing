@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
-	"github.com/jesus/invoice-app/internal/schedule"
-	"github.com/jesus/invoice-app/internal/telegram"
-	"github.com/jesus/invoice-app/internal/whatsapp"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/schedule"
+	"github.com/ajesus37/heavens-invoicing/internal/telegram"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 

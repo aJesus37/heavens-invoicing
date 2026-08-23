@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/whatsapp"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
 )
 
 // WhatsAppAPI is the subset of the WhatsApp session used by the deliverer.

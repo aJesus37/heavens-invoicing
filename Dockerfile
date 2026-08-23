@@ -16,12 +16,8 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/invoice-app .
 
 # ---- runtime stage ----
-# Matches the current production deployment: a single static binary on scratch.
-FROM scratch
+FROM gcr.io/distroless/static-debian12
 
-# CA certificates so outbound HTTPS works (Telegram Bot API, WhatsApp/whatsmeow,
-# SMTP STARTTLS). Without these, crypto/tls has no roots to verify against.
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/invoice-app /invoice-app
 
 # The app stores its SQLite DB under ./data relative to the working directory.

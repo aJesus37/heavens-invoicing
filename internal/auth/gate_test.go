@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
 )
 
 // gateHarness builds a Manager behind a recording next handler so tests

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 func TestRecurringNewShowsNoDraftsHint(t *testing.T) {

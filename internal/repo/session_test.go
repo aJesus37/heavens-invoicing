@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // newSessionDB opens a throwaway database and returns the raw connection

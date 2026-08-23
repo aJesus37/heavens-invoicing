@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/api"
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/api"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // countingChannel is a fake deliverer recording calls.

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/whatsapp"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
 )
 
 var _ deliver.WhatsAppAPI = (*whatsapp.Session)(nil)

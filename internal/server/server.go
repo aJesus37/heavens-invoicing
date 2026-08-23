@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
 )
 
 type Config struct {

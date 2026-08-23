@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 var fixturePIX = "pagamentos@heaven-labs.com"

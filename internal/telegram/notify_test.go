@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/telegram"
+	"github.com/ajesus37/heavens-invoicing/internal/telegram"
 )
 
 type fakeSender struct {

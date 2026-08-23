@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/telegram"
+	"github.com/ajesus37/heavens-invoicing/internal/telegram"
 )
 
 const testToken = "123456:ABC-TOKEN"

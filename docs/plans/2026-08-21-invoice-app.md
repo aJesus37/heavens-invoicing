@@ -25,7 +25,7 @@
 **Step 1: Init module**
 
 ```bash
-cd /home/jesus/invoice-app && go mod init github.com/jesus/invoice-app && mkdir -p internal/server internal/db internal/pdf internal/deliver internal/schedule web/templates
+cd /home/jesus/invoice-app && go mod init github.com/ajesus37/heavens-invoicing && mkdir -p internal/server internal/db internal/pdf internal/deliver internal/schedule web/templates
 ```
 
 **Step 2: Write failing test**
@@ -61,7 +61,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 ```
 
-(Note the import: `"github.com/jesus/invoice-app/internal/server"` — fix import block accordingly.)
+(Note the import: `"github.com/ajesus37/heavens-invoicing/internal/server"` — fix import block accordingly.)
 
 **Step 3: Run to verify failure**
 
@@ -106,7 +106,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/server"
+	"github.com/ajesus37/heavens-invoicing/internal/server"
 )
 
 func main() {
@@ -155,7 +155,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
 )
 
 func TestOpenRunsMigrations(t *testing.T) {
@@ -334,9 +334,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/db"
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 func openTestDB(t *testing.T) *repo.Repos {

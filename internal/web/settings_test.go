@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 func TestSettingsSaveAndReload(t *testing.T) {

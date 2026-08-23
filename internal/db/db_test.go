@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/db"
+	"github.com/ajesus37/heavens-invoicing/internal/db"
 )
 
 func TestOpenRunsMigrations(t *testing.T) {

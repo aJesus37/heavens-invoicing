@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
 )
 
 // authedCSRFPair boots a real session and returns its cookies plus the raw

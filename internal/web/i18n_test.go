@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jesus/invoice-app/internal/model"
-	"github.com/jesus/invoice-app/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
 )
 
 // setLocale stores the UI language preference the way the settings page

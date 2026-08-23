@@ -11,13 +11,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jesus/invoice-app/internal/auth"
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/i18n"
-	"github.com/jesus/invoice-app/internal/pdf"
-	"github.com/jesus/invoice-app/internal/repo"
-	"github.com/jesus/invoice-app/internal/whatsapp"
-	assets "github.com/jesus/invoice-app/web"
+	"github.com/ajesus37/heavens-invoicing/internal/auth"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/i18n"
+	"github.com/ajesus37/heavens-invoicing/internal/pdf"
+	"github.com/ajesus37/heavens-invoicing/internal/repo"
+	"github.com/ajesus37/heavens-invoicing/internal/whatsapp"
+	assets "github.com/ajesus37/heavens-invoicing/web"
 )
 
 // Handlers owns every page route plus the small htmx fragment endpoints.

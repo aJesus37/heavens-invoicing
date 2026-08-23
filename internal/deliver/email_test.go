@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jesus/invoice-app/internal/deliver"
-	"github.com/jesus/invoice-app/internal/model"
+	"github.com/ajesus37/heavens-invoicing/internal/deliver"
+	"github.com/ajesus37/heavens-invoicing/internal/model"
 )
 
 func strPtr(s string) *string { return &s }
